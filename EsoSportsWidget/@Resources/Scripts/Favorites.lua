@@ -4,7 +4,7 @@
 
 local json
 local MAX_GAMES = 12
-local MAX_FAVORITES = 6
+local MAX_FAVORITES = 4
 
 -- Favorite team tracking
 local favTeams = {}
@@ -292,14 +292,17 @@ function FormatGameDate(dateStr)
     local y, m, d, h, mi = dateStr:match('(%d+)-(%d+)-(%d+)T(%d+):(%d+)')
     if not y then return 'TBD' end
 
-    -- Convert UTC to local time
-    local t = os.time({year=tonumber(y), month=tonumber(m), day=tonumber(d),
-                       hour=tonumber(h), min=tonumber(mi), sec=0})
-    local now = os.time()
-    local utcNow = os.time(os.date('!*t', now))
-    local offset = now - utcNow
-    local adjusted = t + offset
-    local lt = os.date('*t', adjusted)
+    local tzOffset = tonumber(SKIN:GetVariable('TimezoneOffset', '-8')) or -8
+    local utcSec = os.time({year=tonumber(y), month=tonumber(m), day=tonumber(d),
+                            hour=tonumber(h), min=tonumber(mi), sec=0, isdst=false})
+    -- os.time interprets the table as local time, so adjust back to true UTC first
+    local localNow = os.time()
+    local utcNow = os.time(os.date('!*t', localNow))
+    local sysOffset = localNow - utcNow
+    local trueUtc = utcSec - sysOffset
+    -- Now apply user's timezone offset
+    local adjusted = trueUtc + (tzOffset * 3600)
+    local lt = os.date('*t', adjusted + sysOffset)  -- os.date expects local time input
 
     local months = {'Jan','Feb','Mar','Apr','May','Jun',
                     'Jul','Aug','Sep','Oct','Nov','Dec'}
@@ -308,6 +311,28 @@ function FormatGameDate(dateStr)
     local ampm = lt.hour >= 12 and 'PM' or 'AM'
 
     return string.format('%s %d %d:%02d%s', months[lt.month], lt.day, hour12, lt.min, ampm)
+end
+
+function FormatGameTime(dateStr)
+    if not dateStr or dateStr == '' then return '' end
+    local y, m, d, h, mi = dateStr:match('(%d+)-(%d+)-(%d+)T(%d+):(%d+)')
+    if not y then return '' end
+
+    local tzOffset = tonumber(SKIN:GetVariable('TimezoneOffset', '-8')) or -8
+    local utcSec = os.time({year=tonumber(y), month=tonumber(m), day=tonumber(d),
+                            hour=tonumber(h), min=tonumber(mi), sec=0, isdst=false})
+    local localNow = os.time()
+    local utcNow = os.time(os.date('!*t', localNow))
+    local sysOffset = localNow - utcNow
+    local trueUtc = utcSec - sysOffset
+    local adjusted = trueUtc + (tzOffset * 3600)
+    local lt = os.date('*t', adjusted + sysOffset)
+
+    local hour12 = lt.hour % 12
+    if hour12 == 0 then hour12 = 12 end
+    local ampm = lt.hour >= 12 and 'PM' or 'AM'
+
+    return string.format('%d:%02d%s', hour12, lt.min, ampm)
 end
 
 -- =====================
@@ -333,10 +358,10 @@ function ParseLeague(league)
     local ok, data = pcall(json.parse, raw)
     if not ok or not data then return end
 
-    -- Filter out games older than 24 hours
+    -- Filter out games older than 6 hours (keep recent finals + all upcoming)
     local allEvents = data.events or {}
     local now = os.time()
-    local cutoff = now - (24 * 60 * 60)
+    local cutoff = now - (6 * 60 * 60)
     local events = {}
     for _, event in ipairs(allEvents) do
         local dateStr = event.date or ''
@@ -376,20 +401,38 @@ function ParseLeague(league)
                 awayScore = tostring(away.score or '')
             end
 
-            local status, clock, period = '', '', ''
+            local status, statusName, clock, period = '', '', '', ''
             if comp.status then
                 if comp.status.type then
                     status = comp.status.type.description or ''
+                    statusName = comp.status.type.name or ''
                 end
                 clock = comp.status.displayClock or ''
                 period = tostring(comp.status.period or '')
+            end
+
+            local isScheduled = (statusName == 'STATUS_SCHEDULED' or status == 'Scheduled')
+            if isScheduled then
+                homeScore = ''
+                awayScore = ''
+            end
+
+            local displayStatus = status
+            if isScheduled then
+                displayStatus = FormatGameTime(event.date or '')
+                if displayStatus == '' then displayStatus = status end
+            elseif status == 'In Progress' and clock ~= '' then
+                displayStatus = clock
+                if period ~= '' and period ~= '0' then
+                    displayStatus = GetPeriodLabel(period, league) .. ' ' .. clock
+                end
             end
 
             SKIN:Bang('!SetVariable', league .. 'HomeAbbr' .. i, homeAbbr)
             SKIN:Bang('!SetVariable', league .. 'AwayAbbr' .. i, awayAbbr)
             SKIN:Bang('!SetVariable', league .. 'HomeScore' .. i, homeScore)
             SKIN:Bang('!SetVariable', league .. 'AwayScore' .. i, awayScore)
-            SKIN:Bang('!SetVariable', league .. 'Status' .. i, status)
+            SKIN:Bang('!SetVariable', league .. 'Status' .. i, displayStatus)
             SKIN:Bang('!SetVariable', league .. 'Clock' .. i, clock)
             SKIN:Bang('!SetVariable', league .. 'Period' .. i, period)
         end
@@ -465,6 +508,15 @@ function UpdateLayout()
     local bgColor = SKIN:GetVariable('BackgroundColor', '20,20,30,220')
     local y = 34
 
+    -- Compute which leagues are visible
+    local visibleLeagues = {}
+    for _, league in ipairs({'NBA', 'NFL', 'NCAAM'}) do
+        if tonumber(SKIN:GetVariable('Show' .. league, '1')) == 1 then
+            visibleLeagues[#visibleLeagues + 1] = league
+        end
+    end
+    local lastVisible = visibleLeagues[#visibleLeagues]
+
     -- Favorites section
     local favCount = tonumber(SKIN:GetVariable('FavCount', '0')) or 0
     if favCount > 0 then
@@ -490,10 +542,14 @@ function UpdateLayout()
                 SKIN:Bang('!HideMeter', 'MeterFavStatus' .. i)
             end
         end
-        y = y + 3
-        SKIN:Bang('!SetOption', 'MeterFavDivider', 'Y', tostring(y))
-        SKIN:Bang('!ShowMeter', 'MeterFavDivider')
-        y = y + 5
+        if #visibleLeagues > 0 then
+            y = y + 3
+            SKIN:Bang('!SetOption', 'MeterFavDivider', 'Y', tostring(y))
+            SKIN:Bang('!ShowMeter', 'MeterFavDivider')
+            y = y + 7
+        else
+            SKIN:Bang('!HideMeter', 'MeterFavDivider')
+        end
     else
         SKIN:Bang('!HideMeter', 'MeterFavHeader')
         SKIN:Bang('!HideMeter', 'MeterFavDivider')
@@ -509,7 +565,7 @@ function UpdateLayout()
 
     -- League sections
     local leagues = {'NBA', 'NFL', 'NCAAM'}
-    for li, league in ipairs(leagues) do
+    for _, league in ipairs(leagues) do
         local show = tonumber(SKIN:GetVariable('Show' .. league, '1')) or 1
         local gameCount = tonumber(SKIN:GetVariable(league .. 'GameCount', '0')) or 0
 
@@ -546,11 +602,11 @@ function UpdateLayout()
                 end
             end
 
-            if li < #leagues then
+            if league ~= lastVisible then
                 y = y + 3
                 SKIN:Bang('!SetOption', 'Meter' .. league .. 'Divider', 'Y', tostring(y))
                 SKIN:Bang('!ShowMeter', 'Meter' .. league .. 'Divider')
-                y = y + 5
+                y = y + 7
             else
                 SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Divider')
             end
@@ -605,6 +661,7 @@ function ResetFavorites()
             SKIN:Bang('!SetVariable', league .. 'Period' .. i, '')
         end
     end
+    SetupFavSchedules()
 end
 
 function GetPeriodLabel(period, league)

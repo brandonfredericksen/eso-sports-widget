@@ -17,6 +17,9 @@ FavoriteTeams=SEA,GONZ
 ; Refresh interval in minutes
 RefreshMinutes=5
 
+; Timezone UTC offset (e.g., -8 for PST, -5 for EST, 0 for UTC)
+TimezoneOffset=-8
+
 ; Display
 MaxGamesPerLeague=12
 FontFace=Segoe UI
