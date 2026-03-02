@@ -93,6 +93,18 @@ OnRegExpErrorAction=[!CommandMeasure LuaFavorites "ParseSMX()"]
 DynamicVariables=1
 
 ; =====================
+; F1 DATA
+; =====================
+[F1WebParser]
+Measure=WebParser
+URL=https://site.api.espn.com/apis/site/v2/sports/racing/f1/scoreboard
+RegExp=(?siU)^(.*)$
+UpdateRate=(#RefreshMinutes# * 60)
+Disabled=1
+FinishAction=[!CommandMeasure LuaFavorites "ParseF1()"]
+UserAgent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36
+
+; =====================
 ; FAVORITE SCHEDULES
 ; =====================
 [FavSchedule1]

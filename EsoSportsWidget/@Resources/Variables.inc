@@ -11,6 +11,10 @@ ShowMLB=1
 ShowUFC=1
 ShowBKFC=1
 ShowSMX=1
+ShowF1=1
+
+; Display order (comma-separated, controls fetch chain and layout order)
+LeagueOrder=NBA,NFL,NCAAM,MLB,UFC,BKFC,SMX,F1
 
 ; Favorite teams (comma-separated abbreviations)
 ; NBA: LAL, BOS, GSW, MIL, NYK, BKN, PHI, MIA, CHI, CLE, etc.
@@ -42,6 +46,7 @@ MLBColor=0,90,180
 UFCColor=200,0,0
 BKFCColor=220,180,50
 SMXColor=0,210,190
+F1Color=225,6,0
 LiveColor=50,205,50
 DimColor=120,120,120
 BackgroundColor=20,20,30,220
@@ -62,3 +67,4 @@ MLBGameCount=0
 UFCGameCount=0
 BKFCGameCount=0
 SMXGameCount=0
+F1GameCount=0
