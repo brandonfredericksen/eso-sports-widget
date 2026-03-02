@@ -44,6 +44,7 @@ SkinWidth=380
 ; Scroll
 ScrollOffset=0
 ScrollStep=28
+MaxSkinHeight=600
 
 ; Internal - do not edit
 FavCount=0

@@ -557,13 +557,57 @@ end
 -- LAYOUT
 -- =====================
 
+-- Stored total content height for scroll calculations
+local totalContentHeight = 0
+
+-- Helper: show or hide a group of 6 sibling meters for a game row
+local function SetRowVisibility(base, index, y, topBound, botBound, isFav)
+    local pre = isFav and 'MeterFav' or ('Meter' .. base)
+    local awayName = pre .. 'Away' .. index
+    if y >= topBound and y < botBound then
+        SKIN:Bang('!SetOption', awayName, 'Y', tostring(y))
+        SKIN:Bang('!ShowMeter', awayName)
+        SKIN:Bang('!ShowMeter', pre .. 'AwayScore' .. index)
+        SKIN:Bang('!ShowMeter', pre .. 'At' .. index)
+        SKIN:Bang('!ShowMeter', pre .. 'Home' .. index)
+        SKIN:Bang('!ShowMeter', pre .. 'HomeScore' .. index)
+        SKIN:Bang('!ShowMeter', pre .. 'Status' .. index)
+    else
+        SKIN:Bang('!HideMeter', awayName)
+        SKIN:Bang('!HideMeter', pre .. 'AwayScore' .. index)
+        SKIN:Bang('!HideMeter', pre .. 'At' .. index)
+        SKIN:Bang('!HideMeter', pre .. 'Home' .. index)
+        SKIN:Bang('!HideMeter', pre .. 'HomeScore' .. index)
+        SKIN:Bang('!HideMeter', pre .. 'Status' .. index)
+    end
+end
+
+-- Helper: show or hide a single meter based on viewport bounds
+local function SetMeterVisibility(name, y, topBound, botBound, yOffset)
+    yOffset = yOffset or 0
+    if y >= topBound and y < botBound then
+        SKIN:Bang('!SetOption', name, 'Y', tostring(y + yOffset))
+        SKIN:Bang('!ShowMeter', name)
+    else
+        SKIN:Bang('!HideMeter', name)
+    end
+end
+
 function UpdateLayout()
     local rowH = tonumber(SKIN:GetVariable('RowHeight', '20')) or 20
     local skinW = tonumber(SKIN:GetVariable('SkinWidth', '380')) or 380
+    local maxH = tonumber(SKIN:GetVariable('MaxSkinHeight', '600')) or 600
     local bgColor = SKIN:GetVariable('BackgroundColor', '20,20,30,220')
-    local y = 46
+    local scrollOffset = tonumber(SKIN:GetVariable('ScrollOffset', '0')) or 0
 
-    -- Compute which leagues are visible
+    -- Title bar occupies Y=0..~45, content starts at Y=46
+    local contentTop = 46
+
+    -- ========================================
+    -- PASS 1: Compute total content height (no scroll offset)
+    -- ========================================
+    local y = contentTop
+
     local visibleLeagues = {}
     for _, league in ipairs({'NBA', 'NFL', 'NCAAM', 'MLB'}) do
         if tonumber(SKIN:GetVariable('Show' .. league, '1')) == 1 then
@@ -572,37 +616,82 @@ function UpdateLayout()
     end
     local lastVisible = visibleLeagues[#visibleLeagues]
 
-    -- Favorites section
     local favCount = tonumber(SKIN:GetVariable('FavCount', '0')) or 0
     if favCount > 0 then
-        SKIN:Bang('!SetOption', 'MeterFavIcon', 'Y', tostring(y + 2))
-        SKIN:Bang('!ShowMeter', 'MeterFavIcon')
-        SKIN:Bang('!SetOption', 'MeterFavHeader', 'Y', tostring(y))
-        SKIN:Bang('!ShowMeter', 'MeterFavHeader')
+        y = y + 26  -- header
+        y = y + favCount * rowH  -- rows
+        if #visibleLeagues > 0 then
+            y = y + 12 + 2  -- divider gap
+        end
+    end
+
+    for _, league in ipairs({'NBA', 'NFL', 'NCAAM', 'MLB'}) do
+        local show = tonumber(SKIN:GetVariable('Show' .. league, '1')) or 1
+        local gameCount = tonumber(SKIN:GetVariable(league .. 'GameCount', '0')) or 0
+        if show == 1 then
+            y = y + 8 + 28  -- padding + header
+            if gameCount == 0 then
+                y = y + rowH  -- "No games" row
+            else
+                y = y + gameCount * rowH
+            end
+            y = y + 12  -- bottom padding
+            if league ~= lastVisible then
+                y = y + 2  -- divider
+            end
+        end
+    end
+
+    y = y + 6  -- final bottom padding
+    totalContentHeight = y
+
+    -- ========================================
+    -- PASS 2: Determine scrolling state
+    -- ========================================
+    local needsScroll = totalContentHeight > maxH
+    if not needsScroll then
+        scrollOffset = 0
+        SKIN:Bang('!SetVariable', 'ScrollOffset', '0')
+    else
+        -- Clamp scroll offset: 0 >= scrollOffset >= -(totalContentHeight - maxH)
+        local maxNeg = -(totalContentHeight - maxH)
+        if scrollOffset > 0 then scrollOffset = 0 end
+        if scrollOffset < maxNeg then scrollOffset = maxNeg end
+        SKIN:Bang('!SetVariable', 'ScrollOffset', tostring(scrollOffset))
+    end
+
+    -- Viewport bounds for visibility clipping (content area only)
+    local topBound = contentTop
+    local botBound = needsScroll and maxH or totalContentHeight
+
+    -- ========================================
+    -- PASS 3: Position meters with scroll offset applied
+    -- ========================================
+    y = contentTop + scrollOffset
+
+    -- Favorites section
+    if favCount > 0 then
+        SetMeterVisibility('MeterFavIcon', y, topBound, botBound, 2)
+        SetMeterVisibility('MeterFavHeader', y, topBound, botBound)
         y = y + 26
         for i = 1, MAX_FAVORITES do
             if i <= favCount then
-                SKIN:Bang('!SetOption', 'MeterFavAway' .. i, 'Y', tostring(y))
-                SKIN:Bang('!ShowMeter', 'MeterFavAway' .. i)
-                SKIN:Bang('!ShowMeter', 'MeterFavAwayScore' .. i)
-                SKIN:Bang('!ShowMeter', 'MeterFavAt' .. i)
-                SKIN:Bang('!ShowMeter', 'MeterFavHome' .. i)
-                SKIN:Bang('!ShowMeter', 'MeterFavHomeScore' .. i)
-                SKIN:Bang('!ShowMeter', 'MeterFavStatus' .. i)
+                SetRowVisibility('', i, y, topBound, botBound, true)
                 y = y + rowH
             else
-                SKIN:Bang('!HideMeter', 'MeterFavAway' .. i)
-                SKIN:Bang('!HideMeter', 'MeterFavAwayScore' .. i)
-                SKIN:Bang('!HideMeter', 'MeterFavAt' .. i)
-                SKIN:Bang('!HideMeter', 'MeterFavHome' .. i)
-                SKIN:Bang('!HideMeter', 'MeterFavHomeScore' .. i)
-                SKIN:Bang('!HideMeter', 'MeterFavStatus' .. i)
+                -- Hide unused fav slots
+                local pre = 'MeterFav'
+                SKIN:Bang('!HideMeter', pre .. 'Away' .. i)
+                SKIN:Bang('!HideMeter', pre .. 'AwayScore' .. i)
+                SKIN:Bang('!HideMeter', pre .. 'At' .. i)
+                SKIN:Bang('!HideMeter', pre .. 'Home' .. i)
+                SKIN:Bang('!HideMeter', pre .. 'HomeScore' .. i)
+                SKIN:Bang('!HideMeter', pre .. 'Status' .. i)
             end
         end
         if #visibleLeagues > 0 then
             y = y + 12
-            SKIN:Bang('!SetOption', 'MeterFavDivider', 'Y', tostring(y))
-            SKIN:Bang('!ShowMeter', 'MeterFavDivider')
+            SetMeterVisibility('MeterFavDivider', y, topBound, botBound)
             y = y + 2
         else
             SKIN:Bang('!HideMeter', 'MeterFavDivider')
@@ -622,22 +711,18 @@ function UpdateLayout()
     end
 
     -- League sections
-    local leagues = {'NBA', 'NFL', 'NCAAM', 'MLB'}
-    for _, league in ipairs(leagues) do
+    for _, league in ipairs({'NBA', 'NFL', 'NCAAM', 'MLB'}) do
         local show = tonumber(SKIN:GetVariable('Show' .. league, '1')) or 1
         local gameCount = tonumber(SKIN:GetVariable(league .. 'GameCount', '0')) or 0
 
         if show == 1 then
-            y = y + 8  -- padding above section header
-            SKIN:Bang('!SetOption', 'Meter' .. league .. 'Icon', 'Y', tostring(y + 2))
-            SKIN:Bang('!ShowMeter', 'Meter' .. league .. 'Icon')
-            SKIN:Bang('!SetOption', 'Meter' .. league .. 'Header', 'Y', tostring(y))
-            SKIN:Bang('!ShowMeter', 'Meter' .. league .. 'Header')
+            y = y + 8
+            SetMeterVisibility('Meter' .. league .. 'Icon', y, topBound, botBound, 2)
+            SetMeterVisibility('Meter' .. league .. 'Header', y, topBound, botBound)
             y = y + 28
 
             if gameCount == 0 then
-                SKIN:Bang('!SetOption', 'Meter' .. league .. 'NoGames', 'Y', tostring(y))
-                SKIN:Bang('!ShowMeter', 'Meter' .. league .. 'NoGames')
+                SetMeterVisibility('Meter' .. league .. 'NoGames', y, topBound, botBound)
                 y = y + rowH
             else
                 SKIN:Bang('!HideMeter', 'Meter' .. league .. 'NoGames')
@@ -645,13 +730,7 @@ function UpdateLayout()
 
             for i = 1, MAX_GAMES do
                 if i <= gameCount then
-                    SKIN:Bang('!SetOption', 'Meter' .. league .. 'Away' .. i, 'Y', tostring(y))
-                    SKIN:Bang('!ShowMeter', 'Meter' .. league .. 'Away' .. i)
-                    SKIN:Bang('!ShowMeter', 'Meter' .. league .. 'AwayScore' .. i)
-                    SKIN:Bang('!ShowMeter', 'Meter' .. league .. 'At' .. i)
-                    SKIN:Bang('!ShowMeter', 'Meter' .. league .. 'Home' .. i)
-                    SKIN:Bang('!ShowMeter', 'Meter' .. league .. 'HomeScore' .. i)
-                    SKIN:Bang('!ShowMeter', 'Meter' .. league .. 'Status' .. i)
+                    SetRowVisibility(league, i, y, topBound, botBound, false)
                     y = y + rowH
                 else
                     SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Away' .. i)
@@ -663,12 +742,11 @@ function UpdateLayout()
                 end
             end
 
-            y = y + 12  -- bottom padding after game rows
+            y = y + 12
 
             if league ~= lastVisible then
-                SKIN:Bang('!SetOption', 'Meter' .. league .. 'Divider', 'Y', tostring(y))
-                SKIN:Bang('!ShowMeter', 'Meter' .. league .. 'Divider')
-                y = y + 2  -- space after divider; next section adds 8 above header
+                SetMeterVisibility('Meter' .. league .. 'Divider', y, topBound, botBound)
+                y = y + 2
             else
                 SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Divider')
             end
@@ -688,11 +766,42 @@ function UpdateLayout()
         end
     end
 
-    y = y + 6
-    SKIN:Bang('!SetOption', 'MeterBottomPadding', 'Y', tostring(y))
+    -- ========================================
+    -- PASS 4: Background + bottom padding + scrollbar
+    -- ========================================
+    local displayH = needsScroll and maxH or totalContentHeight
+    -- Position bottom padding at the display height so DynamicWindowSize uses it
+    SKIN:Bang('!SetOption', 'MeterBottomPadding', 'Y', tostring(displayH - 1))
     SKIN:Bang('!SetOption', 'MeterBottomPadding', 'H', '1')
     SKIN:Bang('!SetOption', 'MeterBackground', 'Shape',
-        'Rectangle 0,0,' .. tostring(skinW) .. ',' .. tostring(y) .. ',8 | Fill Color ' .. bgColor .. ' | StrokeWidth 0')
+        'Rectangle 0,0,' .. tostring(skinW) .. ',' .. tostring(displayH) .. ',8 | Fill Color ' .. bgColor .. ' | StrokeWidth 0')
+
+    -- Scrollbar
+    if needsScroll then
+        local trackTop = contentTop
+        local trackH = displayH - trackTop - 4
+        local thumbRatio = displayH / totalContentHeight
+        local thumbH = math.max(math.floor(trackH * thumbRatio), 20)
+        local scrollRange = totalContentHeight - displayH
+        local scrollProgress = 0
+        if scrollRange > 0 then
+            scrollProgress = (-scrollOffset) / scrollRange
+        end
+        local thumbY = trackTop + math.floor((trackH - thumbH) * scrollProgress)
+
+        SKIN:Bang('!SetOption', 'MeterScrollTrack', 'Shape',
+            'Rectangle 0,0,4,' .. tostring(trackH) .. ',2 | Fill Color 255,255,255,20 | StrokeWidth 0')
+        SKIN:Bang('!SetOption', 'MeterScrollTrack', 'Y', tostring(trackTop))
+        SKIN:Bang('!ShowMeter', 'MeterScrollTrack')
+
+        SKIN:Bang('!SetOption', 'MeterScrollThumb', 'Shape',
+            'Rectangle 0,0,4,' .. tostring(thumbH) .. ',2 | Fill Color 100,180,255,150 | StrokeWidth 0')
+        SKIN:Bang('!SetOption', 'MeterScrollThumb', 'Y', tostring(thumbY))
+        SKIN:Bang('!ShowMeter', 'MeterScrollThumb')
+    else
+        SKIN:Bang('!HideMeter', 'MeterScrollTrack')
+        SKIN:Bang('!HideMeter', 'MeterScrollThumb')
+    end
 end
 
 -- =====================
@@ -702,6 +811,7 @@ end
 function ResetFavorites()
     favTeams = {}
     favScheduleData = {}
+    SKIN:Bang('!SetVariable', 'ScrollOffset', '0')
     SKIN:Bang('!SetVariable', 'FavCount', '0')
     for i = 1, MAX_FAVORITES do
         SKIN:Bang('!SetVariable', 'FavAway' .. i, '')
@@ -772,46 +882,28 @@ function GetPeriodLabel(period, league)
 end
 
 function ScrollUp()
+    local maxH = tonumber(SKIN:GetVariable('MaxSkinHeight', '600')) or 600
+    if totalContentHeight <= maxH then return end
     local offset = tonumber(SKIN:GetVariable('ScrollOffset', '0')) or 0
-    local step = tonumber(SKIN:GetVariable('ScrollStep', '20')) or 20
+    local step = tonumber(SKIN:GetVariable('ScrollStep', '28')) or 28
     offset = offset + step
     if offset > 0 then offset = 0 end
     SKIN:Bang('!SetVariable', 'ScrollOffset', tostring(offset))
+    UpdateLayout()
     SKIN:Bang('!UpdateMeterGroup', 'ContentGroup')
     SKIN:Bang('!Redraw')
 end
 
 function ScrollDown()
+    local maxH = tonumber(SKIN:GetVariable('MaxSkinHeight', '600')) or 600
+    if totalContentHeight <= maxH then return end
     local offset = tonumber(SKIN:GetVariable('ScrollOffset', '0')) or 0
-    local step = tonumber(SKIN:GetVariable('ScrollStep', '20')) or 20
+    local step = tonumber(SKIN:GetVariable('ScrollStep', '28')) or 28
     offset = offset - step
-    local maxScroll = CalculateMaxScroll()
-    if offset < maxScroll then offset = maxScroll end
+    local maxNeg = -(totalContentHeight - maxH)
+    if offset < maxNeg then offset = maxNeg end
     SKIN:Bang('!SetVariable', 'ScrollOffset', tostring(offset))
+    UpdateLayout()
     SKIN:Bang('!UpdateMeterGroup', 'ContentGroup')
     SKIN:Bang('!Redraw')
-end
-
-function CalculateMaxScroll()
-    local rowH = tonumber(SKIN:GetVariable('RowHeight', '20')) or 20
-    local totalRows = 0
-    local favCount = tonumber(SKIN:GetVariable('FavCount', '0')) or 0
-    if favCount > 0 then totalRows = totalRows + 1 + favCount end
-    if tonumber(SKIN:GetVariable('ShowNBA', '1')) == 1 then
-        totalRows = totalRows + 1 + math.max(tonumber(SKIN:GetVariable('NBAGameCount', '0')) or 0, 1)
-    end
-    if tonumber(SKIN:GetVariable('ShowNFL', '1')) == 1 then
-        totalRows = totalRows + 1 + math.max(tonumber(SKIN:GetVariable('NFLGameCount', '0')) or 0, 1)
-    end
-    if tonumber(SKIN:GetVariable('ShowNCAAM', '1')) == 1 then
-        totalRows = totalRows + 1 + math.max(tonumber(SKIN:GetVariable('NCAAMGameCount', '0')) or 0, 1)
-    end
-    if tonumber(SKIN:GetVariable('ShowMLB', '1')) == 1 then
-        totalRows = totalRows + 1 + math.max(tonumber(SKIN:GetVariable('MLBGameCount', '0')) or 0, 1)
-    end
-    local totalHeight = totalRows * rowH + 20
-    local viewHeight = 600
-    local maxScroll = -(totalHeight - viewHeight)
-    if maxScroll > 0 then maxScroll = 0 end
-    return maxScroll
 end
