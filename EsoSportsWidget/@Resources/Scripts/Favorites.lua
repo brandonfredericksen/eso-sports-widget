@@ -27,6 +27,14 @@ local NBA_TEAMS = {
     UTAH=1,WAS=1
 }
 
+-- MLB team abbreviations
+local MLB_TEAMS = {
+    ARI=1,ATL=1,BAL=1,BOS=1,CHC=1,CHW=1,CIN=1,CLE=1,
+    COL=1,DET=1,HOU=1,KC=1,LAA=1,LAD=1,MIA=1,MIL=1,
+    MIN=1,NYM=1,NYY=1,OAK=1,PHI=1,PIT=1,SD=1,SEA=1,
+    SF=1,STL=1,TB=1,TEX=1,TOR=1,WSH=1
+}
+
 -- NCAAM abbreviation -> ESPN team ID (abbreviations don't work in URL)
 local NCAAM_IDS = {
     AAMU=2010,ACU=2000,AF=2005,AKR=2006,ALA=333,ALCN=2016,
@@ -111,6 +119,7 @@ end
 function GetTeamLeague(abbr)
     if NFL_TEAMS[abbr] then return 'NFL' end
     if NBA_TEAMS[abbr] then return 'NBA' end
+    if MLB_TEAMS[abbr] then return 'MLB' end
     return 'NCAAM'
 end
 
@@ -119,6 +128,8 @@ function GetTeamUrl(abbr, league)
         return 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/' .. abbr:lower()
     elseif league == 'NBA' then
         return 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/' .. abbr:lower()
+    elseif league == 'MLB' then
+        return 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/teams/' .. abbr:lower()
     else
         local id = NCAAM_IDS[abbr]
         if id then
@@ -138,9 +149,14 @@ function SetupFavSchedules()
 
     favTeams = {}
     for token in favStr:gmatch('([^,]+)') do
-        local abbr = token:match('^%s*(.-)%s*$'):upper()
-        if abbr ~= '' then
-            local league = GetTeamLeague(abbr)
+        local clean = token:match('^%s*(.-)%s*$'):upper()
+        if clean ~= '' then
+            local prefix, abbr = clean:match('^(%a+):(.+)$')
+            if not prefix then
+                abbr = clean
+                prefix = nil
+            end
+            local league = prefix or GetTeamLeague(abbr)
             favTeams[#favTeams + 1] = { abbr = abbr, league = league }
         end
     end
@@ -477,9 +493,14 @@ function ParseLeague(league)
     if league == 'NBA' then
         if tonumber(SKIN:GetVariable('ShowNFL', '1')) == 1 then nextLeague = 'NFL'
         elseif tonumber(SKIN:GetVariable('ShowNCAAM', '1')) == 1 then nextLeague = 'NCAAM'
+        elseif tonumber(SKIN:GetVariable('ShowMLB', '1')) == 1 then nextLeague = 'MLB'
         end
     elseif league == 'NFL' then
-        if tonumber(SKIN:GetVariable('ShowNCAAM', '1')) == 1 then nextLeague = 'NCAAM' end
+        if tonumber(SKIN:GetVariable('ShowNCAAM', '1')) == 1 then nextLeague = 'NCAAM'
+        elseif tonumber(SKIN:GetVariable('ShowMLB', '1')) == 1 then nextLeague = 'MLB'
+        end
+    elseif league == 'NCAAM' then
+        if tonumber(SKIN:GetVariable('ShowMLB', '1')) == 1 then nextLeague = 'MLB' end
     end
 
     if nextLeague then
@@ -493,7 +514,7 @@ end
 
 -- Override favorites with live scoreboard data when available
 function CheckFavoritesLive()
-    local leagues = {'NBA', 'NFL', 'NCAAM'}
+    local leagues = {'NBA', 'NFL', 'NCAAM', 'MLB'}
     for _, league in ipairs(leagues) do
         local show = tonumber(SKIN:GetVariable('Show' .. league, '1')) or 1
         if show == 1 then
@@ -544,7 +565,7 @@ function UpdateLayout()
 
     -- Compute which leagues are visible
     local visibleLeagues = {}
-    for _, league in ipairs({'NBA', 'NFL', 'NCAAM'}) do
+    for _, league in ipairs({'NBA', 'NFL', 'NCAAM', 'MLB'}) do
         if tonumber(SKIN:GetVariable('Show' .. league, '1')) == 1 then
             visibleLeagues[#visibleLeagues + 1] = league
         end
@@ -598,7 +619,7 @@ function UpdateLayout()
     end
 
     -- League sections
-    local leagues = {'NBA', 'NFL', 'NCAAM'}
+    local leagues = {'NBA', 'NFL', 'NCAAM', 'MLB'}
     for _, league in ipairs(leagues) do
         local show = tonumber(SKIN:GetVariable('Show' .. league, '1')) or 1
         local gameCount = tonumber(SKIN:GetVariable(league .. 'GameCount', '0')) or 0
@@ -684,7 +705,7 @@ function ResetFavorites()
         SKIN:Bang('!SetVariable', 'FavStatus' .. i, '')
         SKIN:Bang('!SetVariable', 'FavStatusType' .. i, '')
     end
-    local leagues = {'NBA', 'NFL', 'NCAAM'}
+    local leagues = {'NBA', 'NFL', 'NCAAM', 'MLB'}
     for _, league in ipairs(leagues) do
         SKIN:Bang('!SetVariable', league .. 'GameCount', '0')
         for i = 1, MAX_GAMES do
@@ -711,6 +732,9 @@ function ResetFavorites()
     elseif tonumber(SKIN:GetVariable('ShowNCAAM', '1')) == 1 then
         SKIN:Bang('!EnableMeasure', 'NCAAMWebParser')
         SKIN:Bang('!CommandMeasure', 'NCAAMWebParser', 'Update')
+    elseif tonumber(SKIN:GetVariable('ShowMLB', '1')) == 1 then
+        SKIN:Bang('!EnableMeasure', 'MLBWebParser')
+        SKIN:Bang('!CommandMeasure', 'MLBWebParser', 'Update')
     else
         -- No scoreboards enabled, start fav fetches directly
         FetchNextFavSchedule(1)
@@ -729,6 +753,9 @@ function GetPeriodLabel(period, league)
         if p == 1 then return '1st'
         elseif p == 2 then return '2nd'
         else return 'OT' end
+    elseif league == 'MLB' then
+        local ordinals = {'1st','2nd','3rd','4th','5th','6th','7th','8th','9th'}
+        return ordinals[p] or (tostring(p) .. 'th')
     else
         if p == 1 then return 'Q1'
         elseif p == 2 then return 'Q2'
@@ -772,6 +799,9 @@ function CalculateMaxScroll()
     end
     if tonumber(SKIN:GetVariable('ShowNCAAM', '1')) == 1 then
         totalRows = totalRows + 1 + math.max(tonumber(SKIN:GetVariable('NCAAMGameCount', '0')) or 0, 1)
+    end
+    if tonumber(SKIN:GetVariable('ShowMLB', '1')) == 1 then
+        totalRows = totalRows + 1 + math.max(tonumber(SKIN:GetVariable('MLBGameCount', '0')) or 0, 1)
     end
     local totalHeight = totalRows * rowH + 20
     local viewHeight = 600
