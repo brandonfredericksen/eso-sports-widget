@@ -602,6 +602,8 @@ function UpdateLayout()
                 end
             end
 
+            y = y + 4  -- bottom padding so content doesn't touch divider
+
             if league ~= lastVisible then
                 y = y + 2
                 SKIN:Bang('!SetOption', 'Meter' .. league .. 'Divider', 'Y', tostring(y))
