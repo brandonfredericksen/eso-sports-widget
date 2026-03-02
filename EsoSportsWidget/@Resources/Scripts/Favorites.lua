@@ -581,6 +581,7 @@ local function SetRowVisibility(base, index, y, topBound, botBound, isFav, rowH)
         for _, name in ipairs(names) do
             SKIN:Bang('!SetOption', name, 'Y', yStr)
             SKIN:Bang('!ShowMeter', name)
+            SKIN:Bang('!UpdateMeter', name)
         end
     else
         for _, name in ipairs(names) do
@@ -738,6 +739,14 @@ function UpdateLayout()
                 SetMeterVisibility('Meter' .. league .. 'NoGames', y, topBound, botBound, 0, rowH)
                 y = y + rowH
                 SKIN:Bang('!HideMeter', 'Meter' .. league .. 'More')
+                for i = 1, MAX_GAMES do
+                    SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Away' .. i)
+                    SKIN:Bang('!HideMeter', 'Meter' .. league .. 'AwayScore' .. i)
+                    SKIN:Bang('!HideMeter', 'Meter' .. league .. 'At' .. i)
+                    SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Home' .. i)
+                    SKIN:Bang('!HideMeter', 'Meter' .. league .. 'HomeScore' .. i)
+                    SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Status' .. i)
+                end
             else
                 SKIN:Bang('!HideMeter', 'Meter' .. league .. 'NoGames')
                 local visCount = leagueExpanded[league] and gameCount or math.min(gameCount, maxVisible)
