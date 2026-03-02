@@ -11,7 +11,7 @@ local favTeams = {}
 local favScheduleData = {}
 
 -- Per-league expand/collapse state
-local leagueExpanded = { NBA = false, NFL = false, NCAAM = false, MLB = false, UFC = false, BKFC = false }
+local leagueExpanded = { NBA = false, NFL = false, NCAAM = false, MLB = false, UFC = false, BKFC = false, SMX = false }
 
 
 -- NFL team abbreviations (for league auto-detection)
@@ -516,6 +516,8 @@ function ParseLeague(league)
             SKIN:Bang('!SetOption', 'BKFCWebParser', 'URL', 'https://www.bkfc.com/events')
             SKIN:Bang('!EnableMeasure', 'BKFCWebParser')
             SKIN:Bang('!CommandMeasure', 'BKFCWebParser', 'Update')
+        elseif tonumber(SKIN:GetVariable('ShowSMX', '1')) == 1 then
+            TriggerSMX()
         else
             FetchNextFavSchedule(1)
         end
@@ -675,6 +677,8 @@ function ChainAfterUFC()
         SKIN:Bang('!SetOption', 'BKFCWebParser', 'URL', 'https://www.bkfc.com/events')
         SKIN:Bang('!EnableMeasure', 'BKFCWebParser')
         SKIN:Bang('!CommandMeasure', 'BKFCWebParser', 'Update')
+    elseif tonumber(SKIN:GetVariable('ShowSMX', '1')) == 1 then
+        TriggerSMX()
     else
         FetchNextFavSchedule(1)
     end
@@ -766,7 +770,150 @@ function ParseBKFC()
     SKIN:Bang('!UpdateMeterGroup', 'ContentGroup')
     SKIN:Bang('!Redraw')
 
-    -- Chain: all scoreboards done, start fetching favorite schedules
+    ChainAfterBKFC()
+end
+
+function ChainAfterBKFC()
+    if tonumber(SKIN:GetVariable('ShowSMX', '1')) == 1 then
+        TriggerSMX()
+    else
+        FetchNextFavSchedule(1)
+    end
+end
+
+-- =====================
+-- SUPERMOTOCROSS PARSING
+-- =====================
+
+function TriggerSMX()
+    -- Fire WebParser in background (will call ParseSMX again via FinishAction if successful)
+    SKIN:Bang('!EnableMeasure', 'SMXWebParser')
+    SKIN:Bang('!CommandMeasure', 'SMXWebParser', 'Update')
+    -- Immediately show hardcoded schedule so we never have empty state
+    ParseSMX()
+end
+
+-- Hardcoded 2026 SuperMotocross schedule (SX + MX + SMX Playoffs)
+local SMX_SCHEDULE = {
+    -- Supercross
+    { date = '2026-01-10', name = 'SX Rd 1 - Anaheim' },
+    { date = '2026-01-17', name = 'SX Rd 2 - San Diego' },
+    { date = '2026-01-24', name = 'SX Rd 3 - Anaheim 2' },
+    { date = '2026-01-31', name = 'SX Rd 4 - Houston' },
+    { date = '2026-02-07', name = 'SX Rd 5 - Glendale' },
+    { date = '2026-02-14', name = 'SX Rd 6 - Seattle' },
+    { date = '2026-02-21', name = 'SX Rd 7 - Arlington' },
+    { date = '2026-02-28', name = 'SX Rd 8 - Daytona' },
+    { date = '2026-03-07', name = 'SX Rd 9 - Indianapolis' },
+    { date = '2026-03-21', name = 'SX Rd 10 - Birmingham' },
+    { date = '2026-03-28', name = 'SX Rd 11 - Detroit' },
+    { date = '2026-04-04', name = 'SX Rd 12 - St. Louis' },
+    { date = '2026-04-11', name = 'SX Rd 13 - Nashville' },
+    { date = '2026-04-18', name = 'SX Rd 14 - Cleveland' },
+    { date = '2026-04-25', name = 'SX Rd 15 - Philadelphia' },
+    { date = '2026-05-02', name = 'SX Rd 16 - Denver' },
+    { date = '2026-05-09', name = 'SX Rd 17 - Salt Lake City' },
+    -- Pro Motocross
+    { date = '2026-05-30', name = 'MX Rd 1 - Fox Raceway' },
+    { date = '2026-06-06', name = 'MX Rd 2 - Hangtown' },
+    { date = '2026-06-13', name = 'MX Rd 3 - Thunder Valley' },
+    { date = '2026-06-20', name = 'MX Rd 4 - High Point' },
+    { date = '2026-07-04', name = 'MX Rd 5 - RedBud' },
+    { date = '2026-07-11', name = 'MX Rd 6 - Southwick' },
+    { date = '2026-07-18', name = 'MX Rd 7 - Spring Creek' },
+    { date = '2026-07-25', name = 'MX Rd 8 - Washougal' },
+    { date = '2026-08-15', name = 'MX Rd 9 - Unadilla' },
+    { date = '2026-08-22', name = 'MX Rd 10 - Budds Creek' },
+    { date = '2026-08-29', name = 'MX Rd 11 - Ironman' },
+    -- SMX Playoffs
+    { date = '2026-09-12', name = 'SMX Playoff Rd 1' },
+    { date = '2026-09-19', name = 'SMX Playoff Rd 2' },
+    { date = '2026-09-26', name = 'SMX World Championship' },
+}
+
+function ParseSMX()
+    -- Try fetching schedule from GitHub JSON first, fall back to hardcoded table
+    local schedule = SMX_SCHEDULE
+    local measure = SKIN:GetMeasure('SMXWebParser')
+    if measure then
+        local raw = measure:GetStringValue()
+        if raw and raw ~= '' then
+            local ok, data = pcall(json.parse, raw)
+            if ok and data and data.events and #data.events > 0 then
+                schedule = data.events
+            end
+        end
+    end
+
+    local now = os.time()
+    local today = os.date('*t', now)
+    local todayNum = today.year * 10000 + today.month * 100 + today.day
+
+    -- Filter to upcoming events (today or later)
+    local upcoming = {}
+    for _, evt in ipairs(schedule) do
+        local y, m, d = evt.date:match('(%d+)-(%d+)-(%d+)')
+        if y then
+            local evtNum = tonumber(y) * 10000 + tonumber(m) * 100 + tonumber(d)
+            if evtNum >= todayNum then
+                upcoming[#upcoming + 1] = evt
+            end
+        end
+    end
+
+    local eventCount = #upcoming
+    if eventCount > MAX_GAMES then eventCount = MAX_GAMES end
+
+    SKIN:Bang('!SetVariable', 'SMXGameCount', tostring(eventCount))
+
+    if eventCount > 0 then
+        -- Determine subheading based on next event type
+        local firstName = upcoming[1].name
+        if firstName:match('^SX ') then
+            SKIN:Bang('!SetVariable', 'SMXSubheading', 'Supercross Season')
+        elseif firstName:match('^MX ') then
+            SKIN:Bang('!SetVariable', 'SMXSubheading', 'Pro Motocross Season')
+        else
+            SKIN:Bang('!SetVariable', 'SMXSubheading', 'SMX Playoffs')
+        end
+    else
+        SKIN:Bang('!SetVariable', 'SMXSubheading', 'Season Complete')
+    end
+
+    for i = 1, eventCount do
+        local evt = upcoming[i]
+        local y, m, d = evt.date:match('(%d+)-(%d+)-(%d+)')
+        local dateDisplay = ''
+        if y then
+            dateDisplay = string.format('%02d/%02d/%02d', tonumber(m), tonumber(d), tonumber(y) % 100)
+        end
+
+        SKIN:Bang('!SetVariable', 'SMXAwayAbbr' .. i, evt.name)
+        SKIN:Bang('!SetVariable', 'SMXHomeAbbr' .. i, '')
+        SKIN:Bang('!SetVariable', 'SMXAwayScore' .. i, '')
+        SKIN:Bang('!SetVariable', 'SMXHomeScore' .. i, '')
+        SKIN:Bang('!SetVariable', 'SMXStatus' .. i, dateDisplay)
+        SKIN:Bang('!SetVariable', 'SMXClock' .. i, '')
+        SKIN:Bang('!SetVariable', 'SMXPeriod' .. i, '')
+    end
+
+    -- Clear remaining slots
+    for i = eventCount + 1, MAX_GAMES do
+        SKIN:Bang('!SetVariable', 'SMXHomeAbbr' .. i, '')
+        SKIN:Bang('!SetVariable', 'SMXAwayAbbr' .. i, '')
+        SKIN:Bang('!SetVariable', 'SMXHomeScore' .. i, '')
+        SKIN:Bang('!SetVariable', 'SMXAwayScore' .. i, '')
+        SKIN:Bang('!SetVariable', 'SMXStatus' .. i, '')
+        SKIN:Bang('!SetVariable', 'SMXClock' .. i, '')
+        SKIN:Bang('!SetVariable', 'SMXPeriod' .. i, '')
+    end
+
+    SKIN:Bang('!UpdateMeterGroup', 'SMXGroup')
+    UpdateLayout()
+    SKIN:Bang('!UpdateMeterGroup', 'ContentGroup')
+    SKIN:Bang('!Redraw')
+
+    -- Chain: done with all scoreboards, start fetching favorite schedules
     FetchNextFavSchedule(1)
 end
 
@@ -872,8 +1019,8 @@ function UpdateLayout()
     -- ========================================
     local y = contentTop
 
-    local allLeagues = {'NBA', 'NFL', 'NCAAM', 'MLB', 'UFC', 'BKFC'}
-    local combatLeagues = { UFC = true, BKFC = true }
+    local allLeagues = {'NBA', 'NFL', 'NCAAM', 'MLB', 'UFC', 'BKFC', 'SMX'}
+    local combatLeagues = { UFC = true, BKFC = true, SMX = true }
     local visibleLeagues = {}
     for _, league in ipairs(allLeagues) do
         if tonumber(SKIN:GetVariable('Show' .. league, '1')) == 1 then
@@ -1036,7 +1183,7 @@ function UpdateLayout()
                 if gameCount > maxVisible then
                     y = y + 4  -- padding above toggle
                     local remaining = gameCount - maxVisible
-                    local moreLabel = isCombat and (league == 'BKFC' and ' more events' or ' more fights') or ' more games'
+                    local moreLabel = isCombat and (league == 'BKFC' and ' more events' or (league == 'SMX' and ' more events' or ' more fights')) or ' more games'
                     local moreText = leagueExpanded[league]
                         and '- Show less'
                         or '+ ' .. remaining .. moreLabel
@@ -1121,7 +1268,7 @@ end
 function ResetFavorites()
     favTeams = {}
     favScheduleData = {}
-    leagueExpanded = { NBA = false, NFL = false, NCAAM = false, MLB = false, UFC = false, BKFC = false }
+    leagueExpanded = { NBA = false, NFL = false, NCAAM = false, MLB = false, UFC = false, BKFC = false, SMX = false }
     SKIN:Bang('!SetVariable', 'ScrollOffset', '0')
     SKIN:Bang('!SetVariable', 'FavCount', '0')
     for i = 1, MAX_FAVORITES do
@@ -1134,7 +1281,8 @@ function ResetFavorites()
     end
     SKIN:Bang('!SetVariable', 'UFCEventName', '')
     SKIN:Bang('!SetVariable', 'BKFCSubheading', 'Upcoming Events')
-    local leagues = {'NBA', 'NFL', 'NCAAM', 'MLB', 'UFC', 'BKFC'}
+    SKIN:Bang('!SetVariable', 'SMXSubheading', 'Upcoming Events')
+    local leagues = {'NBA', 'NFL', 'NCAAM', 'MLB', 'UFC', 'BKFC', 'SMX'}
     for _, league in ipairs(leagues) do
         SKIN:Bang('!SetVariable', league .. 'GameCount', '0')
         for i = 1, MAX_GAMES do
@@ -1171,6 +1319,8 @@ function ResetFavorites()
             SKIN:Bang('!SetOption', 'BKFCWebParser', 'URL', 'https://www.bkfc.com/events')
             SKIN:Bang('!EnableMeasure', 'BKFCWebParser')
             SKIN:Bang('!CommandMeasure', 'BKFCWebParser', 'Update')
+        elseif tonumber(SKIN:GetVariable('ShowSMX', '1')) == 1 then
+            TriggerSMX()
         else
             -- No scoreboards enabled, start fav fetches directly
             FetchNextFavSchedule(1)
