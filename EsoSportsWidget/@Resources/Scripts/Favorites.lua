@@ -3,12 +3,15 @@
 -- and controls dynamic layout positioning.
 
 local json
-local MAX_GAMES = 12
+local MAX_GAMES = 30
 local MAX_FAVORITES = 4
 
 -- Favorite team tracking
 local favTeams = {}
 local favScheduleData = {}
+
+-- Per-league expand/collapse state
+local leagueExpanded = { NBA = false, NFL = false, NCAAM = false, MLB = false }
 
 -- NFL team abbreviations (for league auto-detection)
 local NFL_TEAMS = {
@@ -627,6 +630,7 @@ function UpdateLayout()
         end
     end
 
+    local maxVisible = tonumber(SKIN:GetVariable('MaxVisiblePerLeague', '10')) or 10
     for _, league in ipairs({'NBA', 'NFL', 'NCAAM', 'MLB'}) do
         local show = tonumber(SKIN:GetVariable('Show' .. league, '1')) or 1
         local gameCount = tonumber(SKIN:GetVariable(league .. 'GameCount', '0')) or 0
@@ -635,7 +639,11 @@ function UpdateLayout()
             if gameCount == 0 then
                 y = y + rowH  -- "No games" row
             else
-                y = y + gameCount * rowH
+                local visCount = leagueExpanded[league] and gameCount or math.min(gameCount, maxVisible)
+                y = y + visCount * rowH
+                if gameCount > maxVisible then
+                    y = y + rowH  -- "More" toggle row
+                end
             end
             y = y + 12  -- bottom padding
             if league ~= lastVisible then
@@ -726,21 +734,36 @@ function UpdateLayout()
             if gameCount == 0 then
                 SetMeterVisibility('Meter' .. league .. 'NoGames', y, topBound, botBound, 0, rowH)
                 y = y + rowH
+                SKIN:Bang('!HideMeter', 'Meter' .. league .. 'More')
             else
                 SKIN:Bang('!HideMeter', 'Meter' .. league .. 'NoGames')
-            end
+                local visCount = leagueExpanded[league] and gameCount or math.min(gameCount, maxVisible)
 
-            for i = 1, MAX_GAMES do
-                if i <= gameCount then
-                    SetRowVisibility(league, i, y, topBound, botBound, false, rowH)
+                for i = 1, MAX_GAMES do
+                    if i <= visCount then
+                        SetRowVisibility(league, i, y, topBound, botBound, false, rowH)
+                        y = y + rowH
+                    else
+                        SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Away' .. i)
+                        SKIN:Bang('!HideMeter', 'Meter' .. league .. 'AwayScore' .. i)
+                        SKIN:Bang('!HideMeter', 'Meter' .. league .. 'At' .. i)
+                        SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Home' .. i)
+                        SKIN:Bang('!HideMeter', 'Meter' .. league .. 'HomeScore' .. i)
+                        SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Status' .. i)
+                    end
+                end
+
+                -- "More" toggle
+                if gameCount > maxVisible then
+                    local remaining = gameCount - maxVisible
+                    local moreText = leagueExpanded[league]
+                        and string.char(0xE2, 0x96, 0xB2) .. ' Show less'
+                        or string.char(0xE2, 0x96, 0xBC) .. ' +' .. remaining .. ' more'
+                    SKIN:Bang('!SetOption', 'Meter' .. league .. 'More', 'Text', moreText)
+                    SetMeterVisibility('Meter' .. league .. 'More', y, topBound, botBound, 0, rowH)
                     y = y + rowH
                 else
-                    SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Away' .. i)
-                    SKIN:Bang('!HideMeter', 'Meter' .. league .. 'AwayScore' .. i)
-                    SKIN:Bang('!HideMeter', 'Meter' .. league .. 'At' .. i)
-                    SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Home' .. i)
-                    SKIN:Bang('!HideMeter', 'Meter' .. league .. 'HomeScore' .. i)
-                    SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Status' .. i)
+                    SKIN:Bang('!HideMeter', 'Meter' .. league .. 'More')
                 end
             end
 
@@ -756,6 +779,7 @@ function UpdateLayout()
             SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Icon')
             SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Header')
             SKIN:Bang('!HideMeter', 'Meter' .. league .. 'NoGames')
+            SKIN:Bang('!HideMeter', 'Meter' .. league .. 'More')
             SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Divider')
             for i = 1, MAX_GAMES do
                 SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Away' .. i)
@@ -813,6 +837,7 @@ end
 function ResetFavorites()
     favTeams = {}
     favScheduleData = {}
+    leagueExpanded = { NBA = false, NFL = false, NCAAM = false, MLB = false }
     SKIN:Bang('!SetVariable', 'ScrollOffset', '0')
     SKIN:Bang('!SetVariable', 'FavCount', '0')
     for i = 1, MAX_FAVORITES do
@@ -881,6 +906,13 @@ function GetPeriodLabel(period, league)
         elseif p == 4 then return 'Q4'
         else return 'OT' end
     end
+end
+
+function ToggleLeagueGames(league)
+    leagueExpanded[league] = not leagueExpanded[league]
+    UpdateLayout()
+    SKIN:Bang('!UpdateMeterGroup', 'ContentGroup')
+    SKIN:Bang('!Redraw')
 end
 
 function ScrollUp()

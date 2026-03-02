@@ -24,7 +24,8 @@ RefreshMinutes=5
 TimezoneOffset=-8
 
 ; Display
-MaxGamesPerLeague=12
+MaxGamesPerLeague=30
+MaxVisiblePerLeague=10
 FontFace=Segoe UI
 FontSize=11
 HeaderFontSize=14
