@@ -1281,9 +1281,14 @@ function UpdateLayout()
             'Rectangle 0,0,4,' .. tostring(thumbH) .. ',2 | Fill Color 100,180,255,150 | StrokeWidth 0')
         SKIN:Bang('!SetOption', 'MeterScrollThumb', 'Y', tostring(thumbY))
         SKIN:Bang('!ShowMeter', 'MeterScrollThumb')
+
+        SKIN:Bang('!SetOption', 'MeterScrollHitbox', 'Y', tostring(trackTop))
+        SKIN:Bang('!SetOption', 'MeterScrollHitbox', 'H', tostring(trackH))
+        SKIN:Bang('!ShowMeter', 'MeterScrollHitbox')
     else
         SKIN:Bang('!HideMeter', 'MeterScrollTrack')
         SKIN:Bang('!HideMeter', 'MeterScrollThumb')
+        SKIN:Bang('!HideMeter', 'MeterScrollHitbox')
     end
 end
 
@@ -1410,6 +1415,24 @@ function ScrollDown()
     local maxNeg = -(totalContentHeight - maxH)
     if offset < maxNeg then offset = maxNeg end
     SKIN:Bang('!SetVariable', 'ScrollOffset', tostring(offset))
+    UpdateLayout()
+    SKIN:Bang('!UpdateMeterGroup', 'ContentGroup')
+    SKIN:Bang('!Redraw')
+end
+
+function ScrollToPosition(mouseY)
+    local maxH = tonumber(SKIN:GetVariable('MaxSkinHeight', '600')) or 600
+    if totalContentHeight <= maxH then return end
+    local contentTop = 46
+    local trackH = maxH - contentTop - 4
+    local clickPos = (mouseY - contentTop) / trackH
+    if clickPos < 0 then clickPos = 0 end
+    if clickPos > 1 then clickPos = 1 end
+    local scrollRange = totalContentHeight - maxH
+    local newOffset = math.floor(-(clickPos * scrollRange))
+    if newOffset > 0 then newOffset = 0 end
+    if newOffset < -scrollRange then newOffset = -scrollRange end
+    SKIN:Bang('!SetVariable', 'ScrollOffset', tostring(newOffset))
     UpdateLayout()
     SKIN:Bang('!UpdateMeterGroup', 'ContentGroup')
     SKIN:Bang('!Redraw')
