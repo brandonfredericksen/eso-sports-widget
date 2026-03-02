@@ -150,6 +150,7 @@ function SetupFavSchedules()
     for i = 1, count do
         local url = GetTeamUrl(favTeams[i].abbr, favTeams[i].league)
         if url then
+            SKIN:Bang('!EnableMeasure', 'FavSchedule' .. i)
             SKIN:Bang('!SetOption', 'FavSchedule' .. i, 'URL', url)
             SKIN:Bang('!CommandMeasure', 'FavSchedule' .. i, 'Update')
         end
@@ -455,6 +456,22 @@ function ParseLeague(league)
     UpdateLayout()
     SKIN:Bang('!UpdateMeterGroup', 'ContentGroup')
     SKIN:Bang('!Redraw')
+
+    -- Chain: trigger next league fetch sequentially to avoid connection overload
+    if league == 'NBA' then
+        if tonumber(SKIN:GetVariable('ShowNFL', '1')) == 1 then
+            SKIN:Bang('!EnableMeasure', 'NFLWebParser')
+            SKIN:Bang('!CommandMeasure', 'NFLWebParser', 'Update')
+        elseif tonumber(SKIN:GetVariable('ShowNCAAM', '1')) == 1 then
+            SKIN:Bang('!EnableMeasure', 'NCAAMWebParser')
+            SKIN:Bang('!CommandMeasure', 'NCAAMWebParser', 'Update')
+        end
+    elseif league == 'NFL' then
+        if tonumber(SKIN:GetVariable('ShowNCAAM', '1')) == 1 then
+            SKIN:Bang('!EnableMeasure', 'NCAAMWebParser')
+            SKIN:Bang('!CommandMeasure', 'NCAAMWebParser', 'Update')
+        end
+    end
 end
 
 -- Override favorites with live scoreboard data when available
@@ -664,6 +681,20 @@ function ResetFavorites()
         end
     end
     SetupFavSchedules()
+    UpdateLayout()
+
+    -- Kick off sequential fetch chain: enable first visible league
+    -- NBA is already enabled in INI if ShowNBA=1; NFL/NCAAM start disabled
+    -- If NBA is off, manually start the chain from the next league
+    if tonumber(SKIN:GetVariable('ShowNBA', '1')) ~= 1 then
+        if tonumber(SKIN:GetVariable('ShowNFL', '1')) == 1 then
+            SKIN:Bang('!EnableMeasure', 'NFLWebParser')
+            SKIN:Bang('!CommandMeasure', 'NFLWebParser', 'Update')
+        elseif tonumber(SKIN:GetVariable('ShowNCAAM', '1')) == 1 then
+            SKIN:Bang('!EnableMeasure', 'NCAAMWebParser')
+            SKIN:Bang('!CommandMeasure', 'NCAAMWebParser', 'Update')
+        end
+    end
 end
 
 function GetPeriodLabel(period, league)
