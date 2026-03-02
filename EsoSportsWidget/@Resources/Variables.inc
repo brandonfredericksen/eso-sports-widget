@@ -14,7 +14,7 @@ ShowSMX=1
 ShowF1=1
 
 ; Display order (comma-separated, controls fetch chain and layout order)
-LeagueOrder=NBA,NFL,NCAAM,MLB,UFC,BKFC,SMX,F1
+LeagueOrder=NBA,NFL,NCAAM,MLB,F1,UFC,BKFC,SMX
 
 ; Favorite teams (comma-separated abbreviations)
 ; NBA: LAL, BOS, GSW, MIL, NYK, BKN, PHI, MIA, CHI, CLE, etc.
