@@ -575,6 +575,8 @@ function UpdateLayout()
     -- Favorites section
     local favCount = tonumber(SKIN:GetVariable('FavCount', '0')) or 0
     if favCount > 0 then
+        SKIN:Bang('!SetOption', 'MeterFavIcon', 'Y', tostring(y + 2))
+        SKIN:Bang('!ShowMeter', 'MeterFavIcon')
         SKIN:Bang('!SetOption', 'MeterFavHeader', 'Y', tostring(y))
         SKIN:Bang('!ShowMeter', 'MeterFavHeader')
         y = y + 22
@@ -606,6 +608,7 @@ function UpdateLayout()
             SKIN:Bang('!HideMeter', 'MeterFavDivider')
         end
     else
+        SKIN:Bang('!HideMeter', 'MeterFavIcon')
         SKIN:Bang('!HideMeter', 'MeterFavHeader')
         SKIN:Bang('!HideMeter', 'MeterFavDivider')
         for i = 1, MAX_FAVORITES do
@@ -626,6 +629,8 @@ function UpdateLayout()
 
         if show == 1 then
             y = y + 8  -- padding above section header
+            SKIN:Bang('!SetOption', 'Meter' .. league .. 'Icon', 'Y', tostring(y + 2))
+            SKIN:Bang('!ShowMeter', 'Meter' .. league .. 'Icon')
             SKIN:Bang('!SetOption', 'Meter' .. league .. 'Header', 'Y', tostring(y))
             SKIN:Bang('!ShowMeter', 'Meter' .. league .. 'Header')
             y = y + 24
@@ -668,6 +673,7 @@ function UpdateLayout()
                 SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Divider')
             end
         else
+            SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Icon')
             SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Header')
             SKIN:Bang('!HideMeter', 'Meter' .. league .. 'NoGames')
             SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Divider')
