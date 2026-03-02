@@ -2,7 +2,7 @@
 
 A Rainmeter desktop widget that displays live NBA, NFL, NCAAM, MLB, UFC, and BKFC scores with a favorites section for tracking your teams.
 
-Scores are fetched from the ESPN public API (and TheSportsDB for BKFC) and refresh automatically.
+Scores are fetched from the ESPN public API (and bkfc.com for BKFC) and refresh automatically.
 
 ## 📋 Requirements
 
@@ -98,9 +98,9 @@ BKFCColor=220,180,50      ; gold/amber
 ## 📡 Data Source
 
 - **NBA, NFL, NCAAM, MLB, UFC** game data is from the [ESPN public API](https://site.api.espn.com/apis/site/v2/sports/). No API key is required.
-- **BKFC** event data is from [TheSportsDB free API](https://www.thesportsdb.com/api.php). No API key is required.
+- **BKFC** event data is scraped from [bkfc.com/events](https://www.bkfc.com/events). No API key is required.
 
-**Note:** UFC shows individual fights from the current/upcoming card with fighter names and weight classes. BKFC shows upcoming event names and dates (individual fight cards are not available on the free API tier).
+**Note:** UFC shows individual fights from the current/upcoming card with fighter names and weight classes. BKFC shows upcoming event names and dates.
 
 ## 📄 License
 

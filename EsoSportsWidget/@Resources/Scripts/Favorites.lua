@@ -13,6 +13,7 @@ local favScheduleData = {}
 -- Per-league expand/collapse state
 local leagueExpanded = { NBA = false, NFL = false, NCAAM = false, MLB = false, UFC = false, BKFC = false }
 
+
 -- NFL team abbreviations (for league auto-detection)
 local NFL_TEAMS = {
     ARI=1,ATL=1,BAL=1,BUF=1,CAR=1,CHI=1,CIN=1,CLE=1,
@@ -339,13 +340,11 @@ function FormatGameDate(dateStr)
     local adjusted = trueUtc + (tzOffset * 3600)
     local lt = os.date('*t', adjusted + sysOffset)  -- os.date expects local time input
 
-    local months = {'Jan','Feb','Mar','Apr','May','Jun',
-                    'Jul','Aug','Sep','Oct','Nov','Dec'}
     local hour12 = lt.hour % 12
     if hour12 == 0 then hour12 = 12 end
     local ampm = lt.hour >= 12 and 'PM' or 'AM'
 
-    return string.format('%s %d %d:%02d%s', months[lt.month], lt.day, hour12, lt.min, ampm)
+    return string.format('%02d/%02d/%02d %d:%02d %s', lt.month, lt.day, lt.year % 100, hour12, lt.min, ampm)
 end
 
 function FormatGameTime(dateStr)
@@ -514,9 +513,7 @@ function ParseLeague(league)
             SKIN:Bang('!EnableMeasure', 'UFCWebParser')
             SKIN:Bang('!CommandMeasure', 'UFCWebParser', 'Update')
         elseif tonumber(SKIN:GetVariable('ShowBKFC', '1')) == 1 then
-            local year = os.date('%Y')
-            local url = 'https://www.thesportsdb.com/api/v1/json/3/eventsseason.php?id=4567&s=' .. year
-            SKIN:Bang('!SetOption', 'BKFCWebParser', 'URL', url)
+            SKIN:Bang('!SetOption', 'BKFCWebParser', 'URL', 'https://www.bkfc.com/events')
             SKIN:Bang('!EnableMeasure', 'BKFCWebParser')
             SKIN:Bang('!CommandMeasure', 'BKFCWebParser', 'Update')
         else
@@ -675,10 +672,7 @@ end
 
 function ChainAfterUFC()
     if tonumber(SKIN:GetVariable('ShowBKFC', '1')) == 1 then
-        -- Set BKFC URL with current year before fetching
-        local year = os.date('%Y')
-        local url = 'https://www.thesportsdb.com/api/v1/json/3/eventsseason.php?id=4567&s=' .. year
-        SKIN:Bang('!SetOption', 'BKFCWebParser', 'URL', url)
+        SKIN:Bang('!SetOption', 'BKFCWebParser', 'URL', 'https://www.bkfc.com/events')
         SKIN:Bang('!EnableMeasure', 'BKFCWebParser')
         SKIN:Bang('!CommandMeasure', 'BKFCWebParser', 'Update')
     else
@@ -689,6 +683,29 @@ end
 -- =====================
 -- BKFC PARSING
 -- =====================
+
+local MONTH_MAP = {
+    January=1, February=2, March=3, April=4, May=5, June=6,
+    July=7, August=8, September=9, October=10, November=11, December=12
+}
+
+function FormatBKFCDate(dateStr)
+    if not dateStr or dateStr == '' then return 'TBD' end
+    -- Parse "March 14, 2026 3:00 PM" or "March 14, 2026"
+    local monthName, day, year, timeStr = dateStr:match('(%a+)%s+(%d+),%s+(%d+)%s*(.*)')
+    if not monthName then return dateStr end
+    local mo = MONTH_MAP[monthName]
+    if not mo then return dateStr end
+    local y = tonumber(year) % 100
+    local d = tonumber(day)
+    -- Parse time if present
+    local h, mi, ampm = timeStr:match('(%d+):(%d+)%s*(%a+)')
+    if h then
+        return string.format('%02d/%02d/%02d %s:%s %s', mo, d, y, h, mi, ampm)
+    else
+        return string.format('%02d/%02d/%02d', mo, d, y)
+    end
+end
 
 function ParseBKFC()
     local measure = SKIN:GetMeasure('BKFCWebParser')
@@ -703,32 +720,15 @@ function ParseBKFC()
         return
     end
 
-    local ok, data = pcall(json.parse, raw)
-    if not ok or not data then
-        FetchNextFavSchedule(1)
-        return
-    end
-
-    local allEvents = data.events or {}
-
-    -- Filter to upcoming/current events only (not finished, date >= today)
-    local now = os.time()
-    local todayStart = os.time({year=tonumber(os.date('%Y')), month=tonumber(os.date('%m')),
-                                day=tonumber(os.date('%d')), hour=0, min=0, sec=0})
+    -- Parse HTML from bkfc.com/events
+    -- Event names are in: class="events_card_heading">EVENT NAME</h3>
+    -- Dates with times in: class="text-block-4">March 14, 2026 3:00 PM</div>
     local events = {}
-    for _, evt in ipairs(allEvents) do
-        local finished = (evt.strStatus == 'Match Finished')
-        if not finished then
-            -- Check date is today or future
-            local dateStr = evt.dateEvent or ''
-            local ey, em, ed = dateStr:match('(%d+)-(%d+)-(%d+)')
-            if ey then
-                local eventDay = os.time({year=tonumber(ey), month=tonumber(em), day=tonumber(ed),
-                                          hour=0, min=0, sec=0})
-                if eventDay >= todayStart then
-                    events[#events + 1] = evt
-                end
-            end
+    for name, dateStr in raw:gmatch('class="events_card_heading">([^<]+)</h3>.-class="text%-block%-4">([^<]+)</div>') do
+        local cleanName = name:match('^%s*(.-)%s*$') or name
+        local cleanDate = dateStr:match('^%s*(.-)%s*$') or dateStr
+        if cleanName ~= '' then
+            events[#events + 1] = { name = cleanName, date = cleanDate }
         end
     end
 
@@ -740,30 +740,12 @@ function ParseBKFC()
 
     for i = 1, eventCount do
         local evt = events[i]
-        local eventName = evt.strEvent or ''
-        local displayDate = ''
 
-        -- Parse timestamp for display
-        local timestamp = evt.strTimestamp or evt.dateEvent or ''
-        if timestamp ~= '' then
-            -- TheSportsDB uses ISO format: "2025-03-15T20:00:00" or just "2025-03-15"
-            displayDate = FormatGameDate(timestamp)
-            if displayDate == 'TBD' then
-                -- Try date-only format
-                local ey, em, ed = (evt.dateEvent or ''):match('(%d+)-(%d+)-(%d+)')
-                if ey then
-                    local months = {'Jan','Feb','Mar','Apr','May','Jun',
-                                    'Jul','Aug','Sep','Oct','Nov','Dec'}
-                    displayDate = months[tonumber(em)] .. ' ' .. tonumber(ed)
-                end
-            end
-        end
-
-        SKIN:Bang('!SetVariable', 'BKFCAwayAbbr' .. i, eventName)
+        SKIN:Bang('!SetVariable', 'BKFCAwayAbbr' .. i, evt.name)
         SKIN:Bang('!SetVariable', 'BKFCHomeAbbr' .. i, '')
         SKIN:Bang('!SetVariable', 'BKFCAwayScore' .. i, '')
         SKIN:Bang('!SetVariable', 'BKFCHomeScore' .. i, '')
-        SKIN:Bang('!SetVariable', 'BKFCStatus' .. i, displayDate)
+        SKIN:Bang('!SetVariable', 'BKFCStatus' .. i, FormatBKFCDate(evt.date))
         SKIN:Bang('!SetVariable', 'BKFCClock' .. i, '')
         SKIN:Bang('!SetVariable', 'BKFCPeriod' .. i, '')
     end
@@ -1186,9 +1168,7 @@ function ResetFavorites()
             SKIN:Bang('!EnableMeasure', 'UFCWebParser')
             SKIN:Bang('!CommandMeasure', 'UFCWebParser', 'Update')
         elseif tonumber(SKIN:GetVariable('ShowBKFC', '1')) == 1 then
-            local year = os.date('%Y')
-            local url = 'https://www.thesportsdb.com/api/v1/json/3/eventsseason.php?id=4567&s=' .. year
-            SKIN:Bang('!SetOption', 'BKFCWebParser', 'URL', url)
+            SKIN:Bang('!SetOption', 'BKFCWebParser', 'URL', 'https://www.bkfc.com/events')
             SKIN:Bang('!EnableMeasure', 'BKFCWebParser')
             SKIN:Bang('!CommandMeasure', 'BKFCWebParser', 'Update')
         else
