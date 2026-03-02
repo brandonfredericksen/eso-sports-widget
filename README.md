@@ -10,8 +10,8 @@ Scores are fetched from the ESPN public API (and bkfc.com for BKFC) and refresh 
 
 ## 📦 Installation
 
-1. Download or clone this repository.
-2. Copy the `EsoSportsWidget` folder into your Rainmeter skins directory:
+1. Download the latest `EsoSportsWidget.zip` from [Releases](https://github.com/brandonfredericksen/eso-sports-widget/releases/latest).
+2. Extract the `EsoSportsWidget` folder into your Rainmeter skins directory:
    ```
    Documents\Rainmeter\Skins\
    ```
