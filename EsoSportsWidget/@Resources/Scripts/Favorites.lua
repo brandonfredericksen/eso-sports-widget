@@ -561,10 +561,11 @@ end
 local totalContentHeight = 0
 
 -- Helper: show or hide a group of 6 sibling meters for a game row
-local function SetRowVisibility(base, index, y, topBound, botBound, isFav)
+local function SetRowVisibility(base, index, y, topBound, botBound, isFav, rowH)
+    rowH = rowH or 16
     local pre = isFav and 'MeterFav' or ('Meter' .. base)
     local awayName = pre .. 'Away' .. index
-    if y >= topBound and y < botBound then
+    if y >= topBound and (y + rowH) <= botBound then
         SKIN:Bang('!SetOption', awayName, 'Y', tostring(y))
         SKIN:Bang('!ShowMeter', awayName)
         SKIN:Bang('!ShowMeter', pre .. 'AwayScore' .. index)
@@ -583,9 +584,10 @@ local function SetRowVisibility(base, index, y, topBound, botBound, isFav)
 end
 
 -- Helper: show or hide a single meter based on viewport bounds
-local function SetMeterVisibility(name, y, topBound, botBound, yOffset)
+local function SetMeterVisibility(name, y, topBound, botBound, yOffset, height)
     yOffset = yOffset or 0
-    if y >= topBound and y < botBound then
+    height = height or 22
+    if y >= topBound and (y + height) <= botBound then
         SKIN:Bang('!SetOption', name, 'Y', tostring(y + yOffset))
         SKIN:Bang('!ShowMeter', name)
     else
@@ -676,7 +678,7 @@ function UpdateLayout()
         y = y + 26
         for i = 1, MAX_FAVORITES do
             if i <= favCount then
-                SetRowVisibility('', i, y, topBound, botBound, true)
+                SetRowVisibility('', i, y, topBound, botBound, true, rowH)
                 y = y + rowH
             else
                 -- Hide unused fav slots
@@ -691,7 +693,7 @@ function UpdateLayout()
         end
         if #visibleLeagues > 0 then
             y = y + 12
-            SetMeterVisibility('MeterFavDivider', y, topBound, botBound)
+            SetMeterVisibility('MeterFavDivider', y, topBound, botBound, 0, 4)
             y = y + 2
         else
             SKIN:Bang('!HideMeter', 'MeterFavDivider')
@@ -722,7 +724,7 @@ function UpdateLayout()
             y = y + 28
 
             if gameCount == 0 then
-                SetMeterVisibility('Meter' .. league .. 'NoGames', y, topBound, botBound)
+                SetMeterVisibility('Meter' .. league .. 'NoGames', y, topBound, botBound, 0, rowH)
                 y = y + rowH
             else
                 SKIN:Bang('!HideMeter', 'Meter' .. league .. 'NoGames')
@@ -730,7 +732,7 @@ function UpdateLayout()
 
             for i = 1, MAX_GAMES do
                 if i <= gameCount then
-                    SetRowVisibility(league, i, y, topBound, botBound, false)
+                    SetRowVisibility(league, i, y, topBound, botBound, false, rowH)
                     y = y + rowH
                 else
                     SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Away' .. i)
@@ -745,7 +747,7 @@ function UpdateLayout()
             y = y + 12
 
             if league ~= lastVisible then
-                SetMeterVisibility('Meter' .. league .. 'Divider', y, topBound, botBound)
+                SetMeterVisibility('Meter' .. league .. 'Divider', y, topBound, botBound, 0, 4)
                 y = y + 2
             else
                 SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Divider')
