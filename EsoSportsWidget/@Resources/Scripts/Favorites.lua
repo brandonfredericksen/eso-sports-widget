@@ -147,12 +147,23 @@ function SetupFavSchedules()
 
     local count = math.min(#favTeams, MAX_FAVORITES)
 
+    -- Set URLs but don't fetch yet - FetchNextFavSchedule() handles sequential fetching
     for i = 1, count do
         local url = GetTeamUrl(favTeams[i].abbr, favTeams[i].league)
         if url then
-            SKIN:Bang('!EnableMeasure', 'FavSchedule' .. i)
             SKIN:Bang('!SetOption', 'FavSchedule' .. i, 'URL', url)
+        end
+    end
+end
+
+function FetchNextFavSchedule(startIndex)
+    local count = math.min(#favTeams, MAX_FAVORITES)
+    for i = startIndex, count do
+        local url = GetTeamUrl(favTeams[i].abbr, favTeams[i].league)
+        if url then
+            SKIN:Bang('!EnableMeasure', 'FavSchedule' .. i)
             SKIN:Bang('!CommandMeasure', 'FavSchedule' .. i, 'Update')
+            return
         end
     end
 end
@@ -178,6 +189,7 @@ function ParseFavSchedule(index)
             status = 'none', displayStatus = 'No games scheduled'
         }
         ApplyFavDisplay()
+        FetchNextFavSchedule(index + 1)
         return
     end
 
@@ -258,6 +270,9 @@ function ParseFavSchedule(index)
     }
 
     ApplyFavDisplay()
+
+    -- Chain: fetch next favorite schedule
+    FetchNextFavSchedule(index + 1)
 end
 
 function ApplyFavDisplay()
@@ -457,20 +472,22 @@ function ParseLeague(league)
     SKIN:Bang('!UpdateMeterGroup', 'ContentGroup')
     SKIN:Bang('!Redraw')
 
-    -- Chain: trigger next league fetch sequentially to avoid connection overload
+    -- Chain: trigger next fetch sequentially (1 request at a time)
+    local nextLeague = nil
     if league == 'NBA' then
-        if tonumber(SKIN:GetVariable('ShowNFL', '1')) == 1 then
-            SKIN:Bang('!EnableMeasure', 'NFLWebParser')
-            SKIN:Bang('!CommandMeasure', 'NFLWebParser', 'Update')
-        elseif tonumber(SKIN:GetVariable('ShowNCAAM', '1')) == 1 then
-            SKIN:Bang('!EnableMeasure', 'NCAAMWebParser')
-            SKIN:Bang('!CommandMeasure', 'NCAAMWebParser', 'Update')
+        if tonumber(SKIN:GetVariable('ShowNFL', '1')) == 1 then nextLeague = 'NFL'
+        elseif tonumber(SKIN:GetVariable('ShowNCAAM', '1')) == 1 then nextLeague = 'NCAAM'
         end
     elseif league == 'NFL' then
-        if tonumber(SKIN:GetVariable('ShowNCAAM', '1')) == 1 then
-            SKIN:Bang('!EnableMeasure', 'NCAAMWebParser')
-            SKIN:Bang('!CommandMeasure', 'NCAAMWebParser', 'Update')
-        end
+        if tonumber(SKIN:GetVariable('ShowNCAAM', '1')) == 1 then nextLeague = 'NCAAM' end
+    end
+
+    if nextLeague then
+        SKIN:Bang('!EnableMeasure', nextLeague .. 'WebParser')
+        SKIN:Bang('!CommandMeasure', nextLeague .. 'WebParser', 'Update')
+    else
+        -- All scoreboards done, start fetching favorite schedules
+        FetchNextFavSchedule(1)
     end
 end
 
@@ -587,9 +604,10 @@ function UpdateLayout()
         local gameCount = tonumber(SKIN:GetVariable(league .. 'GameCount', '0')) or 0
 
         if show == 1 then
+            y = y + 8  -- padding above section header
             SKIN:Bang('!SetOption', 'Meter' .. league .. 'Header', 'Y', tostring(y))
             SKIN:Bang('!ShowMeter', 'Meter' .. league .. 'Header')
-            y = y + 22
+            y = y + 24
 
             if gameCount == 0 then
                 SKIN:Bang('!SetOption', 'Meter' .. league .. 'NoGames', 'Y', tostring(y))
@@ -619,13 +637,12 @@ function UpdateLayout()
                 end
             end
 
-            y = y + 6  -- bottom padding so content doesn't touch divider
+            y = y + 8  -- bottom padding after game rows
 
             if league ~= lastVisible then
-                y = y + 3
                 SKIN:Bang('!SetOption', 'Meter' .. league .. 'Divider', 'Y', tostring(y))
                 SKIN:Bang('!ShowMeter', 'Meter' .. league .. 'Divider')
-                y = y + 5
+                y = y + 2
             else
                 SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Divider')
             end
@@ -683,17 +700,20 @@ function ResetFavorites()
     SetupFavSchedules()
     UpdateLayout()
 
-    -- Kick off sequential fetch chain: enable first visible league
-    -- NBA is already enabled in INI if ShowNBA=1; NFL/NCAAM start disabled
-    -- If NBA is off, manually start the chain from the next league
-    if tonumber(SKIN:GetVariable('ShowNBA', '1')) ~= 1 then
-        if tonumber(SKIN:GetVariable('ShowNFL', '1')) == 1 then
-            SKIN:Bang('!EnableMeasure', 'NFLWebParser')
-            SKIN:Bang('!CommandMeasure', 'NFLWebParser', 'Update')
-        elseif tonumber(SKIN:GetVariable('ShowNCAAM', '1')) == 1 then
-            SKIN:Bang('!EnableMeasure', 'NCAAMWebParser')
-            SKIN:Bang('!CommandMeasure', 'NCAAMWebParser', 'Update')
-        end
+    -- Kick off sequential fetch chain: one request at a time
+    -- All WebParser measures start Disabled=1 in INI; Lua enables as needed
+    if tonumber(SKIN:GetVariable('ShowNBA', '1')) == 1 then
+        SKIN:Bang('!EnableMeasure', 'NBAWebParser')
+        SKIN:Bang('!CommandMeasure', 'NBAWebParser', 'Update')
+    elseif tonumber(SKIN:GetVariable('ShowNFL', '1')) == 1 then
+        SKIN:Bang('!EnableMeasure', 'NFLWebParser')
+        SKIN:Bang('!CommandMeasure', 'NFLWebParser', 'Update')
+    elseif tonumber(SKIN:GetVariable('ShowNCAAM', '1')) == 1 then
+        SKIN:Bang('!EnableMeasure', 'NCAAMWebParser')
+        SKIN:Bang('!CommandMeasure', 'NCAAMWebParser', 'Update')
+    else
+        -- No scoreboards enabled, start fav fetches directly
+        FetchNextFavSchedule(1)
     end
 end
 
