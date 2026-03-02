@@ -522,7 +522,7 @@ function UpdateLayout()
     if favCount > 0 then
         SKIN:Bang('!SetOption', 'MeterFavHeader', 'Y', tostring(y))
         SKIN:Bang('!ShowMeter', 'MeterFavHeader')
-        y = y + 28
+        y = y + 22
         for i = 1, MAX_FAVORITES do
             if i <= favCount then
                 SKIN:Bang('!SetOption', 'MeterFavAway' .. i, 'Y', tostring(y))
@@ -543,10 +543,10 @@ function UpdateLayout()
             end
         end
         if #visibleLeagues > 0 then
-            y = y + 3
+            y = y + 2
             SKIN:Bang('!SetOption', 'MeterFavDivider', 'Y', tostring(y))
             SKIN:Bang('!ShowMeter', 'MeterFavDivider')
-            y = y + 7
+            y = y + 3
         else
             SKIN:Bang('!HideMeter', 'MeterFavDivider')
         end
@@ -572,7 +572,7 @@ function UpdateLayout()
         if show == 1 then
             SKIN:Bang('!SetOption', 'Meter' .. league .. 'Header', 'Y', tostring(y))
             SKIN:Bang('!ShowMeter', 'Meter' .. league .. 'Header')
-            y = y + 28
+            y = y + 22
 
             if gameCount == 0 then
                 SKIN:Bang('!SetOption', 'Meter' .. league .. 'NoGames', 'Y', tostring(y))
@@ -603,10 +603,10 @@ function UpdateLayout()
             end
 
             if league ~= lastVisible then
-                y = y + 3
+                y = y + 2
                 SKIN:Bang('!SetOption', 'Meter' .. league .. 'Divider', 'Y', tostring(y))
                 SKIN:Bang('!ShowMeter', 'Meter' .. league .. 'Divider')
-                y = y + 7
+                y = y + 3
             else
                 SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Divider')
             end
@@ -625,7 +625,7 @@ function UpdateLayout()
         end
     end
 
-    y = y + 8
+    y = y + 3
     SKIN:Bang('!SetOption', 'MeterBottomPadding', 'Y', tostring(y))
     SKIN:Bang('!SetOption', 'MeterBottomPadding', 'H', '1')
     SKIN:Bang('!SetOption', 'MeterBackground', 'Shape',
