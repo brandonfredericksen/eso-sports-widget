@@ -646,7 +646,7 @@ function UpdateLayout()
                 local visCount = leagueExpanded[league] and gameCount or math.min(gameCount, maxVisible)
                 y = y + visCount * rowH
                 if gameCount > maxVisible then
-                    y = y + rowH  -- "More" toggle row
+                    y = y + 4 + rowH  -- padding + "More" toggle row
                 end
             end
             y = y + 12  -- bottom padding
@@ -767,6 +767,7 @@ function UpdateLayout()
 
                 -- "More" toggle
                 if gameCount > maxVisible then
+                    y = y + 4  -- padding above toggle
                     local remaining = gameCount - maxVisible
                     local moreText = leagueExpanded[league]
                         and '- Show less'
