@@ -50,7 +50,7 @@ SkinWidth=380
 
 ; Scroll
 ScrollOffset=0
-ScrollStep=28
+ScrollStep=84
 MaxSkinHeight=600
 
 ; Internal - do not edit
