@@ -13,6 +13,9 @@ local favScheduleData = {}
 -- Per-league expand/collapse state
 local leagueExpanded = { NBA = false, NFL = false, NCAAM = false, MLB = false, UFC = false, BKFC = false, SMX = false }
 
+-- Per-league loaded state (false = still fetching, true = data received)
+local leagueLoaded = { NBA = false, NFL = false, NCAAM = false, MLB = false, UFC = false, BKFC = false, SMX = false }
+
 
 -- NFL team abbreviations (for league auto-detection)
 local NFL_TEAMS = {
@@ -383,6 +386,8 @@ function SplitCSV(str)
 end
 
 function ParseLeague(league)
+    leagueLoaded[league] = true
+
     local measure = SKIN:GetMeasure(league .. 'WebParser')
     if not measure then return end
 
@@ -529,6 +534,8 @@ end
 -- =====================
 
 function ParseUFC()
+    leagueLoaded['UFC'] = true
+
     local measure = SKIN:GetMeasure('UFCWebParser')
     if not measure then return end
 
@@ -712,6 +719,8 @@ function FormatBKFCDate(dateStr)
 end
 
 function ParseBKFC()
+    leagueLoaded['BKFC'] = true
+
     local measure = SKIN:GetMeasure('BKFCWebParser')
     if not measure then
         FetchNextFavSchedule(1)
@@ -832,6 +841,8 @@ local SMX_SCHEDULE = {
 }
 
 function ParseSMX()
+    leagueLoaded['SMX'] = true
+
     -- Try fetching schedule from GitHub JSON first, fall back to hardcoded table
     local schedule = SMX_SCHEDULE
     local measure = SKIN:GetMeasure('SMXWebParser')
@@ -1048,7 +1059,11 @@ function UpdateLayout()
                 y = y + 18  -- subheading height
             end
             if gameCount == 0 then
-                y = y + rowH  -- "No games" row
+                if not leagueLoaded[league] then
+                    y = y + (3 * rowH)  -- skeleton height
+                else
+                    y = y + rowH  -- "No games" row
+                end
             else
                 local visCount = leagueExpanded[league] and gameCount or math.min(gameCount, maxVisible)
                 y = y + visCount * rowH
@@ -1150,8 +1165,17 @@ function UpdateLayout()
             end
 
             if gameCount == 0 then
-                SetMeterVisibility('Meter' .. league .. 'NoGames', y, topBound, botBound, 0, rowH)
-                y = y + rowH
+                if not leagueLoaded[league] then
+                    -- Still loading: show skeleton, hide NoGames
+                    SKIN:Bang('!HideMeter', 'Meter' .. league .. 'NoGames')
+                    SetMeterVisibility('Meter' .. league .. 'Loading', y, topBound, botBound, 0, 3 * rowH)
+                    y = y + (3 * rowH)
+                else
+                    -- Loaded with 0 games: show NoGames, hide skeleton
+                    SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Loading')
+                    SetMeterVisibility('Meter' .. league .. 'NoGames', y, topBound, botBound, 0, rowH)
+                    y = y + rowH
+                end
                 SKIN:Bang('!HideMeter', 'Meter' .. league .. 'More')
                 for i = 1, MAX_GAMES do
                     SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Away' .. i)
@@ -1163,6 +1187,7 @@ function UpdateLayout()
                 end
             else
                 SKIN:Bang('!HideMeter', 'Meter' .. league .. 'NoGames')
+                SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Loading')
                 local visCount = leagueExpanded[league] and gameCount or math.min(gameCount, maxVisible)
 
                 for i = 1, MAX_GAMES do
@@ -1210,6 +1235,7 @@ function UpdateLayout()
                 SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Subheading')
             end
             SKIN:Bang('!HideMeter', 'Meter' .. league .. 'NoGames')
+            SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Loading')
             SKIN:Bang('!HideMeter', 'Meter' .. league .. 'More')
             SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Divider')
             for i = 1, MAX_GAMES do
@@ -1255,9 +1281,14 @@ function UpdateLayout()
             'Rectangle 0,0,4,' .. tostring(thumbH) .. ',2 | Fill Color 100,180,255,150 | StrokeWidth 0')
         SKIN:Bang('!SetOption', 'MeterScrollThumb', 'Y', tostring(thumbY))
         SKIN:Bang('!ShowMeter', 'MeterScrollThumb')
+
+        SKIN:Bang('!SetOption', 'MeterScrollHitbox', 'Y', tostring(trackTop))
+        SKIN:Bang('!SetOption', 'MeterScrollHitbox', 'H', tostring(trackH))
+        SKIN:Bang('!ShowMeter', 'MeterScrollHitbox')
     else
         SKIN:Bang('!HideMeter', 'MeterScrollTrack')
         SKIN:Bang('!HideMeter', 'MeterScrollThumb')
+        SKIN:Bang('!HideMeter', 'MeterScrollHitbox')
     end
 end
 
@@ -1269,6 +1300,7 @@ function ResetFavorites()
     favTeams = {}
     favScheduleData = {}
     leagueExpanded = { NBA = false, NFL = false, NCAAM = false, MLB = false, UFC = false, BKFC = false, SMX = false }
+    leagueLoaded = { NBA = false, NFL = false, NCAAM = false, MLB = false, UFC = false, BKFC = false, SMX = false }
     SKIN:Bang('!SetVariable', 'ScrollOffset', '0')
     SKIN:Bang('!SetVariable', 'FavCount', '0')
     for i = 1, MAX_FAVORITES do
@@ -1383,6 +1415,24 @@ function ScrollDown()
     local maxNeg = -(totalContentHeight - maxH)
     if offset < maxNeg then offset = maxNeg end
     SKIN:Bang('!SetVariable', 'ScrollOffset', tostring(offset))
+    UpdateLayout()
+    SKIN:Bang('!UpdateMeterGroup', 'ContentGroup')
+    SKIN:Bang('!Redraw')
+end
+
+function ScrollToPosition(mouseY)
+    local maxH = tonumber(SKIN:GetVariable('MaxSkinHeight', '600')) or 600
+    if totalContentHeight <= maxH then return end
+    local contentTop = 46
+    local trackH = maxH - contentTop - 4
+    local clickPos = (mouseY - contentTop) / trackH
+    if clickPos < 0 then clickPos = 0 end
+    if clickPos > 1 then clickPos = 1 end
+    local scrollRange = totalContentHeight - maxH
+    local newOffset = math.floor(-(clickPos * scrollRange))
+    if newOffset > 0 then newOffset = 0 end
+    if newOffset < -scrollRange then newOffset = -scrollRange end
+    SKIN:Bang('!SetVariable', 'ScrollOffset', tostring(newOffset))
     UpdateLayout()
     SKIN:Bang('!UpdateMeterGroup', 'ContentGroup')
     SKIN:Bang('!Redraw')
