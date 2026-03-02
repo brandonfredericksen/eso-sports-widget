@@ -49,6 +49,28 @@ Each row has 6 meters at fixed X positions:
 - `FormatGameTime()` - Time-only for league games (e.g., "7:30PM")
 - Both convert ESPN UTC times using the configured offset
 
+## Deployment
+- **Git repo (source):** `/home/brandonlinux/web/eso-sports-widget/EsoSportsWidget/`
+- **Rainmeter install (live):** `/mnt/c/Users/brand/Documents/Rainmeter/Skins/EsoSportsWidget/`
+- These are **separate copies**. After editing files in the repo, you MUST copy to the Rainmeter directory for changes to take effect:
+  ```bash
+  cp -r /home/brandonlinux/web/eso-sports-widget/EsoSportsWidget/* /mnt/c/Users/brand/Documents/Rainmeter/Skins/EsoSportsWidget/
+  ```
+- Then refresh the skin in Rainmeter (right-click widget > Refresh, or click the Refresh button)
+
+## League Header Colors
+- NBA: `NBAColor=255,100,50` (orange-red)
+- NFL: `NFLColor=0,180,100` (green)
+- NCAAM: `NCAAMColor=80,150,255` (blue)
+- Favorites: gold (`255,215,0`, hardcoded in INI)
+
+## UpdateLayout() Spacing (in Lua)
+- Header to first row: 22px
+- Row height: 16px (from `RowHeight` variable)
+- Bottom padding after game rows: 4px
+- Divider gap (between sections): 2px before + divider + 3px after = ~6px
+- Bottom padding (end of widget): 3px
+
 ## Common Pitfalls
 - INI meter rows and Lua MAX constants must match (currently both 12 for games, 4 for favorites)
 - `ResetFavorites()` must call `SetupFavSchedules()` at the end to repopulate `favTeams` for async callbacks
@@ -56,6 +78,7 @@ Each row has 6 meters at fixed X positions:
 - Hidden Rainmeter meters don't affect layout when using absolute Y positioning via `!SetOption`
 - `DynamicWindowSize=1` makes the widget auto-resize to fit content
 - The background `Shape` height must be updated in `UpdateLayout()` to match content height
+- **Repo vs Rainmeter are separate copies** - always sync after changes
 
 ## File Locations
 - Skin root: `EsoSportsWidget/Scoreboard/`
