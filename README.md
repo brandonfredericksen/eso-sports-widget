@@ -20,7 +20,9 @@ Scores are fetched from the ESPN public API (and bkfc.com for BKFC) and refresh 
 
 ## ⚙️ Configuration
 
-All settings are in `EsoSportsWidget/@Resources/Variables.inc`. You can also access this file by right-clicking the widget and selecting **Edit Settings**.
+Personal settings go in `EsoSportsWidget/@Resources/UserSettings.inc`. Right-click the widget and select **Edit Settings** to open this file. Any variable you set there overrides the defaults in `Variables.inc`.
+
+On first launch, the widget auto-creates `UserSettings.inc` if it doesn't exist. This file is gitignored so your preferences won't appear as repo changes.
 
 ### 🏀 Toggle Leagues
 
@@ -107,7 +109,7 @@ F1Color=225,6,0           ; F1 red
 ## 🖱️ Usage
 
 - **Refresh** - Click the "Refresh" text in the top-right corner, or right-click > Refresh Skin.
-- **Edit Settings** - Right-click the widget > Edit Settings to open `Variables.inc` in your text editor. Save the file and refresh the skin to apply changes.
+- **Edit Settings** - Right-click the widget > Edit Settings to open `UserSettings.inc` in your text editor. Save the file and refresh the skin to apply changes.
 
 ## 📡 Data Source
 

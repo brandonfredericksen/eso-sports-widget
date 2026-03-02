@@ -112,7 +112,67 @@ function Initialize()
     else
         SKIN:Bang('!Log', 'Lua ERROR: Failed to load JSON parser: ' .. tostring(result), 'Error')
     end
+    EnsureUserSettings()
+    ApplyUserSettings()
     SetupFavSchedules()
+end
+
+function EnsureUserSettings()
+    local settingsPath = SKIN:GetVariable('@') .. 'UserSettings.inc'
+    local f = io.open(settingsPath, 'r')
+    if f then
+        f:close()
+        return
+    end
+    f = io.open(settingsPath, 'w')
+    if f then
+        f:write('; ============================\r\n')
+        f:write('; Your Personal Settings\r\n')
+        f:write('; ============================\r\n')
+        f:write('; Override any variable from Variables.inc here.\r\n')
+        f:write('; This file is not tracked by git.\r\n')
+        f:write('\r\n')
+        f:write('; Favorite teams (comma-separated abbreviations)\r\n')
+        f:write('; Use LEAGUE:ABBR prefix for ambiguous abbreviations (e.g., NFL:SEA, MLB:SEA)\r\n')
+        f:write('FavoriteTeams=\r\n')
+        f:write('\r\n')
+        f:write('; Leagues to show (1=on, 0=off)\r\n')
+        f:write('; ShowNBA=1\r\n')
+        f:write('; ShowNFL=1\r\n')
+        f:write('; ShowNCAAM=1\r\n')
+        f:write('; ShowMLB=1\r\n')
+        f:write('; ShowUFC=1\r\n')
+        f:write('; ShowBKFC=1\r\n')
+        f:write('; ShowSMX=1\r\n')
+        f:write('; ShowF1=1\r\n')
+        f:write('\r\n')
+        f:write('; Display order (comma-separated)\r\n')
+        f:write('; LeagueOrder=NBA,NFL,NCAAM,MLB,UFC,BKFC,SMX,F1\r\n')
+        f:write('\r\n')
+        f:write('; Timezone UTC offset (e.g., -8 for PST, -5 for EST, 0 for UTC)\r\n')
+        f:write('; TimezoneOffset=0\r\n')
+        f:close()
+        SKIN:Bang('!Log', 'Created default UserSettings.inc', 'Notice')
+    end
+end
+
+function ApplyUserSettings()
+    local settingsPath = SKIN:GetVariable('@') .. 'UserSettings.inc'
+    local f = io.open(settingsPath, 'r')
+    if not f then return end
+    for line in f:lines() do
+        -- Skip comments, section headers, and blank lines
+        local trimmed = line:match('^%s*(.-)%s*$')
+        if trimmed ~= '' and trimmed:sub(1, 1) ~= ';' and trimmed:sub(1, 1) ~= '[' then
+            local key, value = trimmed:match('^([^=]+)=(.*)$')
+            if key then
+                key = key:match('^%s*(.-)%s*$')
+                value = value:match('^%s*(.-)%s*$')
+                SKIN:Bang('!SetVariable', key, value)
+            end
+        end
+    end
+    f:close()
 end
 
 function Update()

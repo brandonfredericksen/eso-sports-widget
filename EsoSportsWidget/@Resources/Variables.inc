@@ -1,7 +1,8 @@
 [Variables]
 ; ============================
-; Eso Sports Widget - Settings
+; Eso Sports Widget - Defaults
 ; ============================
+; To customize, edit UserSettings.inc (right-click widget > Edit Settings)
 
 ; Leagues to show (1=on, 0=off)
 ShowNBA=1
@@ -14,7 +15,7 @@ ShowSMX=1
 ShowF1=1
 
 ; Display order (comma-separated, controls fetch chain and layout order)
-LeagueOrder=NBA,NFL,NCAAM,MLB,F1,UFC,BKFC,SMX
+LeagueOrder=NBA,NFL,NCAAM,MLB,UFC,BKFC,SMX,F1
 
 ; Favorite teams (comma-separated abbreviations)
 ; NBA: LAL, BOS, GSW, MIL, NYK, BKN, PHI, MIA, CHI, CLE, etc.
@@ -22,13 +23,13 @@ LeagueOrder=NBA,NFL,NCAAM,MLB,F1,UFC,BKFC,SMX
 ; NCAAM: DUKE, UNC, UK, KU, GONZ, PURDUE, UCONN, etc.
 ; MLB: NYY, BOS, NYM, LAD, HOU, ATL, SEA, etc.
 ; Use LEAGUE:ABBR prefix for ambiguous abbreviations (e.g., NFL:SEA, MLB:SEA)
-FavoriteTeams=NFL:SEA,GONZ,MLB:SEA
+FavoriteTeams=
 
 ; Refresh interval in minutes
 RefreshMinutes=5
 
 ; Timezone UTC offset (e.g., -8 for PST, -5 for EST, 0 for UTC)
-TimezoneOffset=-8
+TimezoneOffset=0
 
 ; Display
 MaxGamesPerLeague=30
