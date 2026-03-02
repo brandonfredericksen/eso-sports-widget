@@ -564,25 +564,28 @@ end
 local totalContentHeight = 0
 
 -- Helper: show or hide a group of 6 sibling meters for a game row
+-- Sets Y explicitly on ALL meters (not relying on Rainmeter's Y=0r resolution)
 local function SetRowVisibility(base, index, y, topBound, botBound, isFav, rowH)
     rowH = rowH or 16
     local pre = isFav and 'MeterFav' or ('Meter' .. base)
-    local awayName = pre .. 'Away' .. index
+    local yStr = tostring(y)
+    local names = {
+        pre .. 'Away' .. index,
+        pre .. 'AwayScore' .. index,
+        pre .. 'At' .. index,
+        pre .. 'Home' .. index,
+        pre .. 'HomeScore' .. index,
+        pre .. 'Status' .. index,
+    }
     if y >= topBound and (y + rowH) <= botBound then
-        SKIN:Bang('!SetOption', awayName, 'Y', tostring(y))
-        SKIN:Bang('!ShowMeter', awayName)
-        SKIN:Bang('!ShowMeter', pre .. 'AwayScore' .. index)
-        SKIN:Bang('!ShowMeter', pre .. 'At' .. index)
-        SKIN:Bang('!ShowMeter', pre .. 'Home' .. index)
-        SKIN:Bang('!ShowMeter', pre .. 'HomeScore' .. index)
-        SKIN:Bang('!ShowMeter', pre .. 'Status' .. index)
+        for _, name in ipairs(names) do
+            SKIN:Bang('!SetOption', name, 'Y', yStr)
+            SKIN:Bang('!ShowMeter', name)
+        end
     else
-        SKIN:Bang('!HideMeter', awayName)
-        SKIN:Bang('!HideMeter', pre .. 'AwayScore' .. index)
-        SKIN:Bang('!HideMeter', pre .. 'At' .. index)
-        SKIN:Bang('!HideMeter', pre .. 'Home' .. index)
-        SKIN:Bang('!HideMeter', pre .. 'HomeScore' .. index)
-        SKIN:Bang('!HideMeter', pre .. 'Status' .. index)
+        for _, name in ipairs(names) do
+            SKIN:Bang('!HideMeter', name)
+        end
     end
 end
 
@@ -757,8 +760,8 @@ function UpdateLayout()
                 if gameCount > maxVisible then
                     local remaining = gameCount - maxVisible
                     local moreText = leagueExpanded[league]
-                        and string.char(0xE2, 0x96, 0xB2) .. ' Show less'
-                        or string.char(0xE2, 0x96, 0xBC) .. ' +' .. remaining .. ' more'
+                        and '- Show less'
+                        or '+ ' .. remaining .. ' more games'
                     SKIN:Bang('!SetOption', 'Meter' .. league .. 'More', 'Text', moreText)
                     SetMeterVisibility('Meter' .. league .. 'More', y, topBound, botBound, 0, rowH)
                     y = y + rowH
