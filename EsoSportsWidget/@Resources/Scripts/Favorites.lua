@@ -579,7 +579,7 @@ function UpdateLayout()
         SKIN:Bang('!ShowMeter', 'MeterFavIcon')
         SKIN:Bang('!SetOption', 'MeterFavHeader', 'Y', tostring(y))
         SKIN:Bang('!ShowMeter', 'MeterFavHeader')
-        y = y + 22
+        y = y + 26
         for i = 1, MAX_FAVORITES do
             if i <= favCount then
                 SKIN:Bang('!SetOption', 'MeterFavAway' .. i, 'Y', tostring(y))
@@ -633,7 +633,7 @@ function UpdateLayout()
             SKIN:Bang('!ShowMeter', 'Meter' .. league .. 'Icon')
             SKIN:Bang('!SetOption', 'Meter' .. league .. 'Header', 'Y', tostring(y))
             SKIN:Bang('!ShowMeter', 'Meter' .. league .. 'Header')
-            y = y + 24
+            y = y + 28
 
             if gameCount == 0 then
                 SKIN:Bang('!SetOption', 'Meter' .. league .. 'NoGames', 'Y', tostring(y))
