@@ -540,7 +540,7 @@ function UpdateLayout()
     local rowH = tonumber(SKIN:GetVariable('RowHeight', '20')) or 20
     local skinW = tonumber(SKIN:GetVariable('SkinWidth', '380')) or 380
     local bgColor = SKIN:GetVariable('BackgroundColor', '20,20,30,220')
-    local y = 34
+    local y = 46
 
     -- Compute which leagues are visible
     local visibleLeagues = {}
@@ -577,10 +577,10 @@ function UpdateLayout()
             end
         end
         if #visibleLeagues > 0 then
-            y = y + 3
+            y = y + 12
             SKIN:Bang('!SetOption', 'MeterFavDivider', 'Y', tostring(y))
             SKIN:Bang('!ShowMeter', 'MeterFavDivider')
-            y = y + 5
+            y = y + 2
         else
             SKIN:Bang('!HideMeter', 'MeterFavDivider')
         end
@@ -637,12 +637,12 @@ function UpdateLayout()
                 end
             end
 
-            y = y + 8  -- bottom padding after game rows
+            y = y + 12  -- bottom padding after game rows
 
             if league ~= lastVisible then
                 SKIN:Bang('!SetOption', 'Meter' .. league .. 'Divider', 'Y', tostring(y))
                 SKIN:Bang('!ShowMeter', 'Meter' .. league .. 'Divider')
-                y = y + 2
+                y = y + 2  -- space after divider; next section adds 8 above header
             else
                 SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Divider')
             end
