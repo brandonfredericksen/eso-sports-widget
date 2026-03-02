@@ -1,6 +1,6 @@
 # 🏟️ Eso Sports Widget
 
-A Rainmeter desktop widget that displays live NBA, NFL, NCAAM, MLB, UFC, and BKFC scores with a favorites section for tracking your teams.
+A Rainmeter desktop widget that displays live NBA, NFL, NCAAM, MLB, UFC, BKFC, SMX, and F1 scores and schedules with a favorites section for tracking your teams.
 
 Scores are fetched from the ESPN public API (and bkfc.com for BKFC) and refresh automatically.
 
@@ -20,7 +20,9 @@ Scores are fetched from the ESPN public API (and bkfc.com for BKFC) and refresh 
 
 ## ⚙️ Configuration
 
-All settings are in `EsoSportsWidget/@Resources/Variables.inc`. You can also access this file by right-clicking the widget and selecting **Edit Settings**.
+Personal settings go in `EsoSportsWidget/@Resources/UserSettings.inc`. Right-click the widget and select **Edit Settings** to open this file. Any variable you set there overrides the defaults in `Variables.inc`.
+
+On first launch, the widget auto-creates `UserSettings.inc` if it doesn't exist. This file is gitignored so your preferences won't appear as repo changes.
 
 ### 🏀 Toggle Leagues
 
@@ -33,7 +35,19 @@ ShowNCAAM=1
 ShowMLB=1
 ShowUFC=1
 ShowBKFC=1
+ShowSMX=1
+ShowF1=1
 ```
+
+### 📊 League Display Order
+
+Control the order leagues appear in the widget and the order they fetch data. Edit the comma-separated list to reorder:
+
+```ini
+LeagueOrder=NBA,NFL,NCAAM,MLB,UFC,BKFC,SMX,F1
+```
+
+Rearrange to put your preferred leagues first, e.g. `LeagueOrder=F1,NFL,NBA,MLB,NCAAM,UFC,BKFC,SMX`.
 
 ### ⭐ Favorite Teams
 
@@ -88,19 +102,23 @@ NCAAMColor=80,150,255     ; blue
 MLBColor=0,90,180         ; dark blue
 UFCColor=200,0,0          ; red
 BKFCColor=220,180,50      ; gold/amber
+SMXColor=0,210,190        ; teal
+F1Color=225,6,0           ; F1 red
 ```
 
 ## 🖱️ Usage
 
 - **Refresh** - Click the "Refresh" text in the top-right corner, or right-click > Refresh Skin.
-- **Edit Settings** - Right-click the widget > Edit Settings to open `Variables.inc` in your text editor. Save the file and refresh the skin to apply changes.
+- **Edit Settings** - Right-click the widget > Edit Settings to open `UserSettings.inc` in your text editor. Save the file and refresh the skin to apply changes.
 
 ## 📡 Data Source
 
 - **NBA, NFL, NCAAM, MLB, UFC** game data is from the [ESPN public API](https://site.api.espn.com/apis/site/v2/sports/). No API key is required.
 - **BKFC** event data is scraped from [bkfc.com/events](https://www.bkfc.com/events). No API key is required.
+- **SMX** (SuperMotocross) schedule is maintained in a bundled JSON file with hardcoded fallback.
+- **F1** race calendar is from the [ESPN F1 API](https://site.api.espn.com/apis/site/v2/sports/racing/f1/scoreboard). No API key is required.
 
-**Note:** UFC shows individual fights from the current/upcoming card with fighter names and weight classes. BKFC shows upcoming event names and dates.
+**Note:** UFC shows individual fights from the current/upcoming card with fighter names and weight classes. BKFC shows upcoming event names and dates. SMX and F1 display upcoming race/event schedules with dates.
 
 ## 📄 License
 

@@ -11,10 +11,10 @@ local favTeams = {}
 local favScheduleData = {}
 
 -- Per-league expand/collapse state
-local leagueExpanded = { NBA = false, NFL = false, NCAAM = false, MLB = false, UFC = false, BKFC = false, SMX = false }
+local leagueExpanded = { NBA = false, NFL = false, NCAAM = false, MLB = false, UFC = false, BKFC = false, SMX = false, F1 = false }
 
 -- Per-league loaded state (false = still fetching, true = data received)
-local leagueLoaded = { NBA = false, NFL = false, NCAAM = false, MLB = false, UFC = false, BKFC = false, SMX = false }
+local leagueLoaded = { NBA = false, NFL = false, NCAAM = false, MLB = false, UFC = false, BKFC = false, SMX = false, F1 = false }
 
 
 -- NFL team abbreviations (for league auto-detection)
@@ -112,7 +112,67 @@ function Initialize()
     else
         SKIN:Bang('!Log', 'Lua ERROR: Failed to load JSON parser: ' .. tostring(result), 'Error')
     end
+    EnsureUserSettings()
+    ApplyUserSettings()
     SetupFavSchedules()
+end
+
+function EnsureUserSettings()
+    local settingsPath = SKIN:GetVariable('@') .. 'UserSettings.inc'
+    local f = io.open(settingsPath, 'r')
+    if f then
+        f:close()
+        return
+    end
+    f = io.open(settingsPath, 'w')
+    if f then
+        f:write('; ============================\r\n')
+        f:write('; Your Personal Settings\r\n')
+        f:write('; ============================\r\n')
+        f:write('; Override any variable from Variables.inc here.\r\n')
+        f:write('; This file is not tracked by git.\r\n')
+        f:write('\r\n')
+        f:write('; Favorite teams (comma-separated abbreviations)\r\n')
+        f:write('; Use LEAGUE:ABBR prefix for ambiguous abbreviations (e.g., NFL:SEA, MLB:SEA)\r\n')
+        f:write('FavoriteTeams=\r\n')
+        f:write('\r\n')
+        f:write('; Leagues to show (1=on, 0=off)\r\n')
+        f:write('; ShowNBA=1\r\n')
+        f:write('; ShowNFL=1\r\n')
+        f:write('; ShowNCAAM=1\r\n')
+        f:write('; ShowMLB=1\r\n')
+        f:write('; ShowUFC=1\r\n')
+        f:write('; ShowBKFC=1\r\n')
+        f:write('; ShowSMX=1\r\n')
+        f:write('; ShowF1=1\r\n')
+        f:write('\r\n')
+        f:write('; Display order (comma-separated)\r\n')
+        f:write('; LeagueOrder=NBA,NFL,NCAAM,MLB,UFC,BKFC,SMX,F1\r\n')
+        f:write('\r\n')
+        f:write('; Timezone UTC offset (e.g., -8 for PST, -5 for EST, 0 for UTC)\r\n')
+        f:write('; TimezoneOffset=0\r\n')
+        f:close()
+        SKIN:Bang('!Log', 'Created default UserSettings.inc', 'Notice')
+    end
+end
+
+function ApplyUserSettings()
+    local settingsPath = SKIN:GetVariable('@') .. 'UserSettings.inc'
+    local f = io.open(settingsPath, 'r')
+    if not f then return end
+    for line in f:lines() do
+        -- Skip comments, section headers, and blank lines
+        local trimmed = line:match('^%s*(.-)%s*$')
+        if trimmed ~= '' and trimmed:sub(1, 1) ~= ';' and trimmed:sub(1, 1) ~= '[' then
+            local key, value = trimmed:match('^([^=]+)=(.*)$')
+            if key then
+                key = key:match('^%s*(.-)%s*$')
+                value = value:match('^%s*(.-)%s*$')
+                SKIN:Bang('!SetVariable', key, value)
+            end
+        end
+    end
+    f:close()
 end
 
 function Update()
@@ -373,6 +433,47 @@ function FormatGameTime(dateStr)
 end
 
 -- =====================
+-- CONFIGURABLE LEAGUE ORDER
+-- =====================
+
+function GetLeagueOrder()
+    local orderStr = SKIN:GetVariable('LeagueOrder', 'NBA,NFL,NCAAM,MLB,UFC,BKFC,SMX,F1')
+    local order = {}
+    for league in orderStr:gmatch('[^,]+') do
+        order[#order + 1] = league:match('^%s*(.-)%s*$')  -- trim whitespace
+    end
+    return order
+end
+
+function ChainNextLeague(currentLeague)
+    local order = GetLeagueOrder()
+    local foundSelf = false
+    for _, lg in ipairs(order) do
+        if lg == currentLeague then
+            foundSelf = true
+        elseif foundSelf and tonumber(SKIN:GetVariable('Show' .. lg, '1')) == 1 then
+            TriggerLeague(lg)
+            return
+        end
+    end
+    -- End of chain: fetch favorite schedules
+    FetchNextFavSchedule(1)
+end
+
+function TriggerLeague(league)
+    if league == 'BKFC' then
+        SKIN:Bang('!SetOption', 'BKFCWebParser', 'URL', 'https://www.bkfc.com/events')
+        SKIN:Bang('!EnableMeasure', 'BKFCWebParser')
+        SKIN:Bang('!CommandMeasure', 'BKFCWebParser', 'Update')
+    elseif league == 'SMX' then
+        TriggerSMX()
+    else
+        SKIN:Bang('!EnableMeasure', league .. 'WebParser')
+        SKIN:Bang('!CommandMeasure', league .. 'WebParser', 'Update')
+    end
+end
+
+-- =====================
 -- LEAGUE PARSING
 -- =====================
 
@@ -495,38 +596,8 @@ function ParseLeague(league)
     SKIN:Bang('!UpdateMeterGroup', 'ContentGroup')
     SKIN:Bang('!Redraw')
 
-    -- Chain: trigger next fetch sequentially (1 request at a time)
-    -- Order: NBA -> NFL -> NCAAM -> MLB -> UFC -> BKFC -> Favorites
-    local chainOrder = {'NBA', 'NFL', 'NCAAM', 'MLB'}
-    local foundSelf = false
-    local nextLeague = nil
-    for _, lg in ipairs(chainOrder) do
-        if lg == league then
-            foundSelf = true
-        elseif foundSelf and tonumber(SKIN:GetVariable('Show' .. lg, '1')) == 1 then
-            nextLeague = lg
-            break
-        end
-    end
-
-    if nextLeague then
-        SKIN:Bang('!EnableMeasure', nextLeague .. 'WebParser')
-        SKIN:Bang('!CommandMeasure', nextLeague .. 'WebParser', 'Update')
-    else
-        -- After MLB (or last enabled team sport), chain to UFC
-        if tonumber(SKIN:GetVariable('ShowUFC', '1')) == 1 then
-            SKIN:Bang('!EnableMeasure', 'UFCWebParser')
-            SKIN:Bang('!CommandMeasure', 'UFCWebParser', 'Update')
-        elseif tonumber(SKIN:GetVariable('ShowBKFC', '1')) == 1 then
-            SKIN:Bang('!SetOption', 'BKFCWebParser', 'URL', 'https://www.bkfc.com/events')
-            SKIN:Bang('!EnableMeasure', 'BKFCWebParser')
-            SKIN:Bang('!CommandMeasure', 'BKFCWebParser', 'Update')
-        elseif tonumber(SKIN:GetVariable('ShowSMX', '1')) == 1 then
-            TriggerSMX()
-        else
-            FetchNextFavSchedule(1)
-        end
-    end
+    -- Chain to next league in configurable order
+    ChainNextLeague(league)
 end
 
 -- =====================
@@ -680,15 +751,7 @@ function ParseUFC()
 end
 
 function ChainAfterUFC()
-    if tonumber(SKIN:GetVariable('ShowBKFC', '1')) == 1 then
-        SKIN:Bang('!SetOption', 'BKFCWebParser', 'URL', 'https://www.bkfc.com/events')
-        SKIN:Bang('!EnableMeasure', 'BKFCWebParser')
-        SKIN:Bang('!CommandMeasure', 'BKFCWebParser', 'Update')
-    elseif tonumber(SKIN:GetVariable('ShowSMX', '1')) == 1 then
-        TriggerSMX()
-    else
-        FetchNextFavSchedule(1)
-    end
+    ChainNextLeague('UFC')
 end
 
 -- =====================
@@ -783,11 +846,7 @@ function ParseBKFC()
 end
 
 function ChainAfterBKFC()
-    if tonumber(SKIN:GetVariable('ShowSMX', '1')) == 1 then
-        TriggerSMX()
-    else
-        FetchNextFavSchedule(1)
-    end
+    ChainNextLeague('BKFC')
 end
 
 -- =====================
@@ -924,8 +983,125 @@ function ParseSMX()
     SKIN:Bang('!UpdateMeterGroup', 'ContentGroup')
     SKIN:Bang('!Redraw')
 
-    -- Chain: done with all scoreboards, start fetching favorite schedules
-    FetchNextFavSchedule(1)
+    -- Chain to next league in configurable order
+    ChainNextLeague('SMX')
+end
+
+-- =====================
+-- F1 PARSING
+-- =====================
+
+function ParseF1()
+    leagueLoaded['F1'] = true
+
+    local measure = SKIN:GetMeasure('F1WebParser')
+    if not measure then
+        ChainNextLeague('F1')
+        return
+    end
+
+    local raw = measure:GetStringValue()
+    if not raw or raw == '' then
+        SKIN:Bang('!SetVariable', 'F1GameCount', '0')
+        UpdateLayout()
+        SKIN:Bang('!UpdateMeterGroup', 'ContentGroup')
+        SKIN:Bang('!Redraw')
+        ChainNextLeague('F1')
+        return
+    end
+
+    local ok, data = pcall(json.parse, raw)
+    if not ok or not data then
+        SKIN:Bang('!SetVariable', 'F1GameCount', '0')
+        UpdateLayout()
+        SKIN:Bang('!UpdateMeterGroup', 'ContentGroup')
+        SKIN:Bang('!Redraw')
+        ChainNextLeague('F1')
+        return
+    end
+
+    local events = data.events or {}
+
+    -- Filter to upcoming events (today or later)
+    local now = os.time()
+    local today = os.date('*t', now)
+    local todayNum = today.year * 10000 + today.month * 100 + today.day
+    local upcoming = {}
+    for _, event in ipairs(events) do
+        local dateStr = event.date or ''
+        local y, m, d = dateStr:match('(%d+)-(%d+)-(%d+)')
+        if y then
+            local evtNum = tonumber(y) * 10000 + tonumber(m) * 100 + tonumber(d)
+            if evtNum >= todayNum then
+                upcoming[#upcoming + 1] = event
+            end
+        else
+            upcoming[#upcoming + 1] = event
+        end
+    end
+
+    local eventCount = #upcoming
+    if eventCount > MAX_GAMES then eventCount = MAX_GAMES end
+
+    SKIN:Bang('!SetVariable', 'F1GameCount', tostring(eventCount))
+
+    -- Set subheading
+    if eventCount > 0 then
+        local season = upcoming[1].season
+        if season and season.year then
+            SKIN:Bang('!SetVariable', 'F1Subheading', tostring(season.year) .. ' Season')
+        else
+            SKIN:Bang('!SetVariable', 'F1Subheading', 'Upcoming Races')
+        end
+    else
+        SKIN:Bang('!SetVariable', 'F1Subheading', 'No Upcoming Races')
+    end
+
+    for i = 1, eventCount do
+        local event = upcoming[i]
+        local raceName = event.name or ''
+        local circuitName = ''
+
+        -- Extract circuit/location from competitions or venue
+        local comp = event.competitions and event.competitions[1]
+        if comp and comp.venue then
+            circuitName = comp.venue.fullName or comp.venue.shortName or ''
+        end
+
+        -- Format date
+        local dateDisplay = ''
+        local dateStr = event.date or ''
+        local y, m, d = dateStr:match('(%d+)-(%d+)-(%d+)')
+        if y then
+            dateDisplay = string.format('%02d/%02d/%02d', tonumber(m), tonumber(d), tonumber(y) % 100)
+        end
+
+        SKIN:Bang('!SetVariable', 'F1AwayAbbr' .. i, raceName)
+        SKIN:Bang('!SetVariable', 'F1HomeAbbr' .. i, circuitName)
+        SKIN:Bang('!SetVariable', 'F1AwayScore' .. i, '')
+        SKIN:Bang('!SetVariable', 'F1HomeScore' .. i, '')
+        SKIN:Bang('!SetVariable', 'F1Status' .. i, dateDisplay)
+        SKIN:Bang('!SetVariable', 'F1Clock' .. i, '')
+        SKIN:Bang('!SetVariable', 'F1Period' .. i, '')
+    end
+
+    -- Clear remaining slots
+    for i = eventCount + 1, MAX_GAMES do
+        SKIN:Bang('!SetVariable', 'F1HomeAbbr' .. i, '')
+        SKIN:Bang('!SetVariable', 'F1AwayAbbr' .. i, '')
+        SKIN:Bang('!SetVariable', 'F1HomeScore' .. i, '')
+        SKIN:Bang('!SetVariable', 'F1AwayScore' .. i, '')
+        SKIN:Bang('!SetVariable', 'F1Status' .. i, '')
+        SKIN:Bang('!SetVariable', 'F1Clock' .. i, '')
+        SKIN:Bang('!SetVariable', 'F1Period' .. i, '')
+    end
+
+    SKIN:Bang('!UpdateMeterGroup', 'F1Group')
+    UpdateLayout()
+    SKIN:Bang('!UpdateMeterGroup', 'ContentGroup')
+    SKIN:Bang('!Redraw')
+
+    ChainNextLeague('F1')
 end
 
 -- Override favorites with live scoreboard data when available
@@ -1030,8 +1206,8 @@ function UpdateLayout()
     -- ========================================
     local y = contentTop
 
-    local allLeagues = {'NBA', 'NFL', 'NCAAM', 'MLB', 'UFC', 'BKFC', 'SMX'}
-    local combatLeagues = { UFC = true, BKFC = true, SMX = true }
+    local allLeagues = GetLeagueOrder()
+    local combatLeagues = { UFC = true, BKFC = true, SMX = true, F1 = true }
     local visibleLeagues = {}
     for _, league in ipairs(allLeagues) do
         if tonumber(SKIN:GetVariable('Show' .. league, '1')) == 1 then
@@ -1208,7 +1384,7 @@ function UpdateLayout()
                 if gameCount > maxVisible then
                     y = y + 4  -- padding above toggle
                     local remaining = gameCount - maxVisible
-                    local moreLabel = isCombat and (league == 'BKFC' and ' more events' or (league == 'SMX' and ' more events' or ' more fights')) or ' more games'
+                    local moreLabel = isCombat and ((league == 'BKFC' or league == 'SMX' or league == 'F1') and ' more events' or ' more fights') or ' more games'
                     local moreText = leagueExpanded[league]
                         and '- Show less'
                         or '+ ' .. remaining .. moreLabel
@@ -1299,8 +1475,8 @@ end
 function ResetFavorites()
     favTeams = {}
     favScheduleData = {}
-    leagueExpanded = { NBA = false, NFL = false, NCAAM = false, MLB = false, UFC = false, BKFC = false, SMX = false }
-    leagueLoaded = { NBA = false, NFL = false, NCAAM = false, MLB = false, UFC = false, BKFC = false, SMX = false }
+    leagueExpanded = { NBA = false, NFL = false, NCAAM = false, MLB = false, UFC = false, BKFC = false, SMX = false, F1 = false }
+    leagueLoaded = { NBA = false, NFL = false, NCAAM = false, MLB = false, UFC = false, BKFC = false, SMX = false, F1 = false }
     SKIN:Bang('!SetVariable', 'ScrollOffset', '0')
     SKIN:Bang('!SetVariable', 'FavCount', '0')
     for i = 1, MAX_FAVORITES do
@@ -1314,7 +1490,8 @@ function ResetFavorites()
     SKIN:Bang('!SetVariable', 'UFCEventName', '')
     SKIN:Bang('!SetVariable', 'BKFCSubheading', 'Upcoming Events')
     SKIN:Bang('!SetVariable', 'SMXSubheading', 'Upcoming Events')
-    local leagues = {'NBA', 'NFL', 'NCAAM', 'MLB', 'UFC', 'BKFC', 'SMX'}
+    SKIN:Bang('!SetVariable', 'F1Subheading', 'Upcoming Races')
+    local leagues = GetLeagueOrder()
     for _, league in ipairs(leagues) do
         SKIN:Bang('!SetVariable', league .. 'GameCount', '0')
         for i = 1, MAX_GAMES do
@@ -1330,33 +1507,18 @@ function ResetFavorites()
     SetupFavSchedules()
     UpdateLayout()
 
-    -- Kick off sequential fetch chain: one request at a time
-    -- Order: NBA -> NFL -> NCAAM -> MLB -> UFC -> BKFC -> Favorites
-    -- All WebParser measures start Disabled=1 in INI; Lua enables as needed
-    local startChain = {'NBA', 'NFL', 'NCAAM', 'MLB'}
+    -- Kick off sequential fetch chain using configurable order
+    local order = GetLeagueOrder()
     local started = false
-    for _, lg in ipairs(startChain) do
+    for _, lg in ipairs(order) do
         if tonumber(SKIN:GetVariable('Show' .. lg, '1')) == 1 then
-            SKIN:Bang('!EnableMeasure', lg .. 'WebParser')
-            SKIN:Bang('!CommandMeasure', lg .. 'WebParser', 'Update')
+            TriggerLeague(lg)
             started = true
             break
         end
     end
     if not started then
-        if tonumber(SKIN:GetVariable('ShowUFC', '1')) == 1 then
-            SKIN:Bang('!EnableMeasure', 'UFCWebParser')
-            SKIN:Bang('!CommandMeasure', 'UFCWebParser', 'Update')
-        elseif tonumber(SKIN:GetVariable('ShowBKFC', '1')) == 1 then
-            SKIN:Bang('!SetOption', 'BKFCWebParser', 'URL', 'https://www.bkfc.com/events')
-            SKIN:Bang('!EnableMeasure', 'BKFCWebParser')
-            SKIN:Bang('!CommandMeasure', 'BKFCWebParser', 'Update')
-        elseif tonumber(SKIN:GetVariable('ShowSMX', '1')) == 1 then
-            TriggerSMX()
-        else
-            -- No scoreboards enabled, start fav fetches directly
-            FetchNextFavSchedule(1)
-        end
+        FetchNextFavSchedule(1)
     end
 end
 
