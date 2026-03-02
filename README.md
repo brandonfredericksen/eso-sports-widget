@@ -1,8 +1,8 @@
 # 🏟️ Eso Sports Widget
 
-A Rainmeter desktop widget that displays live NBA, NFL, NCAAM, and MLB scores with a favorites section for tracking your teams.
+A Rainmeter desktop widget that displays live NBA, NFL, NCAAM, MLB, UFC, and BKFC scores with a favorites section for tracking your teams.
 
-Scores are fetched from the ESPN public API and refresh automatically.
+Scores are fetched from the ESPN public API (and bkfc.com for BKFC) and refresh automatically.
 
 ## 📋 Requirements
 
@@ -31,6 +31,8 @@ ShowNBA=1
 ShowNFL=1
 ShowNCAAM=1
 ShowMLB=1
+ShowUFC=1
+ShowBKFC=1
 ```
 
 ### ⭐ Favorite Teams
@@ -84,6 +86,8 @@ NBAColor=255,100,50       ; orange-red
 NFLColor=0,180,100        ; green
 NCAAMColor=80,150,255     ; blue
 MLBColor=0,90,180         ; dark blue
+UFCColor=200,0,0          ; red
+BKFCColor=220,180,50      ; gold/amber
 ```
 
 ## 🖱️ Usage
@@ -93,7 +97,10 @@ MLBColor=0,90,180         ; dark blue
 
 ## 📡 Data Source
 
-All game data is from the [ESPN public API](https://site.api.espn.com/apis/site/v2/sports/). No API key is required.
+- **NBA, NFL, NCAAM, MLB, UFC** game data is from the [ESPN public API](https://site.api.espn.com/apis/site/v2/sports/). No API key is required.
+- **BKFC** event data is scraped from [bkfc.com/events](https://www.bkfc.com/events). No API key is required.
+
+**Note:** UFC shows individual fights from the current/upcoming card with fighter names and weight classes. BKFC shows upcoming event names and dates.
 
 ## 📄 License
 
