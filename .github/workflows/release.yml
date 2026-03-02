@@ -1,0 +1,29 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build release zip
+        run: |
+          cd EsoSportsWidget
+          # Remove dev-only files
+          rm -f PLAN.md CLAUDE.md
+          cd ..
+          zip -r EsoSportsWidget.zip EsoSportsWidget/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: EsoSportsWidget.zip
+          generate_release_notes: true
