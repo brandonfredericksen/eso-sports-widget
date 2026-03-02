@@ -543,10 +543,10 @@ function UpdateLayout()
             end
         end
         if #visibleLeagues > 0 then
-            y = y + 2
+            y = y + 3
             SKIN:Bang('!SetOption', 'MeterFavDivider', 'Y', tostring(y))
             SKIN:Bang('!ShowMeter', 'MeterFavDivider')
-            y = y + 3
+            y = y + 5
         else
             SKIN:Bang('!HideMeter', 'MeterFavDivider')
         end
@@ -602,13 +602,13 @@ function UpdateLayout()
                 end
             end
 
-            y = y + 4  -- bottom padding so content doesn't touch divider
+            y = y + 6  -- bottom padding so content doesn't touch divider
 
             if league ~= lastVisible then
-                y = y + 2
+                y = y + 3
                 SKIN:Bang('!SetOption', 'Meter' .. league .. 'Divider', 'Y', tostring(y))
                 SKIN:Bang('!ShowMeter', 'Meter' .. league .. 'Divider')
-                y = y + 3
+                y = y + 5
             else
                 SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Divider')
             end
@@ -627,7 +627,7 @@ function UpdateLayout()
         end
     end
 
-    y = y + 3
+    y = y + 6
     SKIN:Bang('!SetOption', 'MeterBottomPadding', 'Y', tostring(y))
     SKIN:Bang('!SetOption', 'MeterBottomPadding', 'H', '1')
     SKIN:Bang('!SetOption', 'MeterBackground', 'Shape',
