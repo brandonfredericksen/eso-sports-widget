@@ -1,0 +1,2 @@
+Runtime cache of the last good API response per source.
+Kept in git so a fresh install has a directory to write into.

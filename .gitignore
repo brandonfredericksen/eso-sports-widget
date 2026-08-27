@@ -2,4 +2,5 @@
 PLAN.md
 CLAUDE.md
 EsoSportsWidget/@Resources/UserSettings.inc
-EsoSportsWidget/@Resources/Cache/
+EsoSportsWidget/@Resources/Cache/*
+!EsoSportsWidget/@Resources/Cache/.gitkeep
