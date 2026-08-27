@@ -16,6 +16,62 @@ local leagueExpanded = { NBA = false, NFL = false, NCAAM = false, MLB = false, U
 -- Per-league loaded state (false = still fetching, true = data received)
 local leagueLoaded = { NBA = false, NFL = false, NCAAM = false, MLB = false, UFC = false, BKFC = false, SMX = false, F1 = false }
 
+-- Row index -> date heading text, for leagues whose games are grouped by date.
+local leagueDateHeaders = {}
+local DATE_GROUPED = { NBA = true, NFL = true, NCAAM = true, MLB = true }
+local DATE_HDR_H = 18
+
+-- favTeams index -> favorites display slot. Favorites are packed into slots so
+-- that filtering one out never leaves a gap; nil means "not currently shown".
+local favDisplaySlot = {}
+
+-- Converts an ESPN UTC timestamp into a table of local-time parts, honouring the
+-- user's TimezoneOffset. Returns nil when the string is not a timestamp.
+local function ToLocalTime(dateStr)
+    if not dateStr or dateStr == '' then return nil end
+    local y, m, d, h, mi = dateStr:match('(%d+)-(%d+)-(%d+)T(%d+):(%d+)')
+    if not y then return nil end
+
+    local tzOffset = tonumber(SKIN:GetVariable('TimezoneOffset', '-8')) or -8
+    local utcSec = os.time({year=tonumber(y), month=tonumber(m), day=tonumber(d),
+                            hour=tonumber(h), min=tonumber(mi), sec=0, isdst=false})
+    -- os.time() read that table as local time, so back the system offset out
+    -- before applying the user's configured offset.
+    local localNow = os.time()
+    local sysOffset = localNow - os.time(os.date('!*t', localNow))
+    return os.date('*t', (utcSec - sysOffset) + (tzOffset * 3600) + sysOffset)
+end
+
+-- Whole days from today to the given timestamp. Anchored at midday on both ends
+-- so a DST boundary in between cannot round the answer off by one.
+local function DaysUntil(dateStr)
+    local lt = ToLocalTime(dateStr)
+    if not lt then return nil end
+    local eventDay = os.time({year=lt.year, month=lt.month, day=lt.day, hour=12, min=0, sec=0})
+    local t = os.date('*t')
+    local today = os.time({year=t.year, month=t.month, day=t.day, hour=12, min=0, sec=0})
+    return math.floor(((eventDay - today) / 86400) + 0.5)
+end
+
+-- Stable YYYYMMDD key, for grouping games that fall on the same local date.
+local function LocalDayKey(dateStr)
+    local lt = ToLocalTime(dateStr)
+    if not lt then return nil end
+    return lt.year * 10000 + lt.month * 100 + lt.day
+end
+
+local DAY_NAMES = {'SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'}
+
+-- Heading drawn above the first game of each date, e.g. "TODAY" or "THU 8/28".
+local function DateHeading(dateStr)
+    local lt = ToLocalTime(dateStr)
+    if not lt then return nil end
+    local days = DaysUntil(dateStr)
+    if days == 0 then return 'TODAY' end
+    if days == 1 then return 'TOMORROW' end
+    return string.format('%s %d/%d', DAY_NAMES[lt.wday] or '', lt.month, lt.day)
+end
+
 
 -- NFL team abbreviations (for league auto-detection)
 local NFL_TEAMS = {
@@ -251,15 +307,22 @@ function FetchNextFavSchedule(startIndex)
             return
         end
     end
+
+    -- Reached the end of the whole fetch chain. Refresh once more so the
+    -- layout reflects whatever data did arrive, even if every league failed.
+    UpdateLayout()
+    SKIN:Bang('!UpdateMeterGroup', 'ContentGroup')
+    SKIN:Bang('!Redraw')
 end
 
-function ParseFavSchedule(index)
-    local measure = SKIN:GetMeasure('FavSchedule' .. index)
-    if not measure then return end
-
-    local raw = measure:GetStringValue()
+function ParseFavScheduleBody(index, rawOverride)
+    local raw = rawOverride
+    if not raw then
+        local measure = SKIN:GetMeasure('FavSchedule' .. index)
+        if not measure then return end
+        raw = measure:GetStringValue()
+    end
     if not raw or raw == '' then return end
-
     local ok, data = pcall(json.parse, raw)
     if not ok or not data then return end
 
@@ -274,7 +337,6 @@ function ParseFavSchedule(index)
             status = 'none', displayStatus = 'No games scheduled'
         }
         ApplyFavDisplay()
-        FetchNextFavSchedule(index + 1)
         return
     end
 
@@ -351,59 +413,73 @@ function ParseFavSchedule(index)
     favScheduleData[index] = {
         away = awayAbbr, home = homeAbbr,
         awayScore = awayScore, homeScore = homeScore,
-        status = statusDesc, displayStatus = displayStatus
+        status = statusDesc, displayStatus = displayStatus,
+        eventDate = event.date
     }
 
     ApplyFavDisplay()
 
     -- Chain: fetch next favorite schedule
-    FetchNextFavSchedule(index + 1)
 end
 
+-- Decides which favorites are worth a row right now, then packs the survivors
+-- into contiguous display slots. A team whose next game is further out than
+-- FavoriteMaxDaysAhead (or that has no game scheduled at all) is dropped, so
+-- the section does not carry dead weight through an off-season.
 function ApplyFavDisplay()
     local count = math.min(#favTeams, MAX_FAVORITES)
+    local maxDays = tonumber(SKIN:GetVariable('FavoriteMaxDaysAhead', '30')) or 30
+
+    favDisplaySlot = {}
+    local slot = 0
     for i = 1, count do
         local d = favScheduleData[i]
+        local keep = false
         if d then
-            SKIN:Bang('!SetVariable', 'FavAway' .. i, d.away)
-            SKIN:Bang('!SetVariable', 'FavHome' .. i, d.home)
-            SKIN:Bang('!SetVariable', 'FavAwayScore' .. i, d.awayScore)
-            SKIN:Bang('!SetVariable', 'FavHomeScore' .. i, d.homeScore)
-            SKIN:Bang('!SetVariable', 'FavStatus' .. i, d.displayStatus)
-            SKIN:Bang('!SetVariable', 'FavStatusType' .. i, d.status)
+            if maxDays <= 0 then
+                keep = true          -- filtering disabled: show every favorite
+            elseif d.eventDate then
+                local days = DaysUntil(d.eventDate)
+                keep = (days ~= nil and days <= maxDays)
+            end
+        end
+
+        if keep then
+            slot = slot + 1
+            favDisplaySlot[i] = slot
+            SKIN:Bang('!SetVariable', 'FavAway' .. slot, d.away)
+            SKIN:Bang('!SetVariable', 'FavHome' .. slot, d.home)
+            SKIN:Bang('!SetVariable', 'FavAwayScore' .. slot, d.awayScore)
+            SKIN:Bang('!SetVariable', 'FavHomeScore' .. slot, d.homeScore)
+            SKIN:Bang('!SetVariable', 'FavStatus' .. slot, d.displayStatus)
+            SKIN:Bang('!SetVariable', 'FavStatusType' .. slot, d.status)
+            -- Tag the row with its sport, coloured like that league's header
+            local lg = (favTeams[i] and favTeams[i].league) or ''
+            SKIN:Bang('!SetVariable', 'FavLeague' .. slot, lg)
+            SKIN:Bang('!SetVariable', 'FavLeagueColor' .. slot, SKIN:GetVariable(lg .. 'Color', '120,120,120'))
         end
     end
-    -- Clear unused slots
-    for i = count + 1, MAX_FAVORITES do
+
+    -- Clear whatever slots the survivors did not fill
+    for i = slot + 1, MAX_FAVORITES do
         SKIN:Bang('!SetVariable', 'FavAway' .. i, '')
         SKIN:Bang('!SetVariable', 'FavHome' .. i, '')
         SKIN:Bang('!SetVariable', 'FavAwayScore' .. i, '')
         SKIN:Bang('!SetVariable', 'FavHomeScore' .. i, '')
         SKIN:Bang('!SetVariable', 'FavStatus' .. i, '')
         SKIN:Bang('!SetVariable', 'FavStatusType' .. i, '')
+        SKIN:Bang('!SetVariable', 'FavLeague' .. i, '')
     end
-    SKIN:Bang('!SetVariable', 'FavCount', tostring(count))
+
+    SKIN:Bang('!SetVariable', 'FavCount', tostring(slot))
     UpdateLayout()
     SKIN:Bang('!UpdateMeterGroup', 'ContentGroup')
     SKIN:Bang('!Redraw')
 end
 
 function FormatGameDate(dateStr)
-    if not dateStr or dateStr == '' then return 'TBD' end
-    local y, m, d, h, mi = dateStr:match('(%d+)-(%d+)-(%d+)T(%d+):(%d+)')
-    if not y then return 'TBD' end
-
-    local tzOffset = tonumber(SKIN:GetVariable('TimezoneOffset', '-8')) or -8
-    local utcSec = os.time({year=tonumber(y), month=tonumber(m), day=tonumber(d),
-                            hour=tonumber(h), min=tonumber(mi), sec=0, isdst=false})
-    -- os.time interprets the table as local time, so adjust back to true UTC first
-    local localNow = os.time()
-    local utcNow = os.time(os.date('!*t', localNow))
-    local sysOffset = localNow - utcNow
-    local trueUtc = utcSec - sysOffset
-    -- Now apply user's timezone offset
-    local adjusted = trueUtc + (tzOffset * 3600)
-    local lt = os.date('*t', adjusted + sysOffset)  -- os.date expects local time input
+    local lt = ToLocalTime(dateStr)
+    if not lt then return 'TBD' end
 
     local hour12 = lt.hour % 12
     if hour12 == 0 then hour12 = 12 end
@@ -413,19 +489,8 @@ function FormatGameDate(dateStr)
 end
 
 function FormatGameTime(dateStr)
-    if not dateStr or dateStr == '' then return '' end
-    local y, m, d, h, mi = dateStr:match('(%d+)-(%d+)-(%d+)T(%d+):(%d+)')
-    if not y then return '' end
-
-    local tzOffset = tonumber(SKIN:GetVariable('TimezoneOffset', '-8')) or -8
-    local utcSec = os.time({year=tonumber(y), month=tonumber(m), day=tonumber(d),
-                            hour=tonumber(h), min=tonumber(mi), sec=0, isdst=false})
-    local localNow = os.time()
-    local utcNow = os.time(os.date('!*t', localNow))
-    local sysOffset = localNow - utcNow
-    local trueUtc = utcSec - sysOffset
-    local adjusted = trueUtc + (tzOffset * 3600)
-    local lt = os.date('*t', adjusted + sysOffset)
+    local lt = ToLocalTime(dateStr)
+    if not lt then return '' end
 
     local hour12 = lt.hour % 12
     if hour12 == 0 then hour12 = 12 end
@@ -488,15 +553,17 @@ function SplitCSV(str)
     return result
 end
 
-function ParseLeague(league)
+function ParseLeagueBody(league, rawOverride)
     leagueLoaded[league] = true
 
-    local measure = SKIN:GetMeasure(league .. 'WebParser')
-    if not measure then return end
-
-    local raw = measure:GetStringValue()
+    -- rawOverride lets the caller replay cached JSON when the live fetch failed
+    local raw = rawOverride
+    if not raw then
+        local measure = SKIN:GetMeasure(league .. 'WebParser')
+        if not measure then return end
+        raw = measure:GetStringValue()
+    end
     if not raw or raw == '' then return end
-
     local ok, data = pcall(json.parse, raw)
     if not ok or not data then return end
 
@@ -519,15 +586,29 @@ function ParseLeague(league)
         if keep then events[#events + 1] = event end
     end
 
+    -- ESPN normally returns these in chronological order, but the date
+    -- grouping below depends on it, so make the ordering explicit.
+    table.sort(events, function(a, b) return (a.date or '') < (b.date or '') end)
+
     local gameCount = #events
     if gameCount > MAX_GAMES then gameCount = MAX_GAMES end
 
     SKIN:Bang('!SetVariable', league .. 'GameCount', tostring(gameCount))
 
+    -- Row index -> heading, set only on the first game of each date.
+    local headers = {}
+    local lastDayKey = nil
+
     for i = 1, gameCount do
         local event = events[i]
         local comp = event and event.competitions and event.competitions[1]
         if comp then
+            local dayKey = LocalDayKey(event.date or '')
+            if dayKey and dayKey ~= lastDayKey then
+                headers[i] = DateHeading(event.date or '')
+                lastDayKey = dayKey
+            end
+
             local home = comp.competitors and comp.competitors[1]
             local away = comp.competitors and comp.competitors[2]
 
@@ -591,6 +672,13 @@ function ParseLeague(league)
         SKIN:Bang('!SetVariable', league .. 'Period' .. i, '')
     end
 
+    leagueDateHeaders[league] = DATE_GROUPED[league] and headers or nil
+    if DATE_GROUPED[league] then
+        for i = 1, MAX_GAMES do
+            SKIN:Bang('!SetVariable', league .. 'DateHdr' .. i, headers[i] or '')
+        end
+    end
+
     -- Update display
     SKIN:Bang('!UpdateMeterGroup', league .. 'Group')
     CheckFavoritesLive()
@@ -598,29 +686,24 @@ function ParseLeague(league)
     SKIN:Bang('!UpdateMeterGroup', 'ContentGroup')
     SKIN:Bang('!Redraw')
 
-    -- Chain to next league in configurable order
-    ChainNextLeague(league)
 end
 
 -- =====================
 -- UFC PARSING
 -- =====================
 
-function ParseUFC()
+function ParseUFCBody(rawOverride)
     leagueLoaded['UFC'] = true
 
-    local measure = SKIN:GetMeasure('UFCWebParser')
-    if not measure then return end
-
-    local raw = measure:GetStringValue()
-    if not raw or raw == '' then
-        ChainAfterUFC()
-        return
+    local raw = rawOverride
+    if not raw then
+        local measure = SKIN:GetMeasure('UFCWebParser')
+        if not measure then return end
+        raw = measure:GetStringValue()
     end
-
+    if not raw or raw == '' then return end
     local ok, data = pcall(json.parse, raw)
     if not ok or not data then
-        ChainAfterUFC()
         return
     end
 
@@ -640,7 +723,6 @@ function ParseUFC()
         UpdateLayout()
         SKIN:Bang('!UpdateMeterGroup', 'ContentGroup')
         SKIN:Bang('!Redraw')
-        ChainAfterUFC()
         return
     end
 
@@ -749,7 +831,6 @@ function ParseUFC()
     SKIN:Bang('!UpdateMeterGroup', 'ContentGroup')
     SKIN:Bang('!Redraw')
 
-    ChainAfterUFC()
 end
 
 function ChainAfterUFC()
@@ -783,18 +864,16 @@ function FormatBKFCDate(dateStr)
     end
 end
 
-function ParseBKFC()
+function ParseBKFCBody()
     leagueLoaded['BKFC'] = true
 
     local measure = SKIN:GetMeasure('BKFCWebParser')
     if not measure then
-        FetchNextFavSchedule(1)
         return
     end
 
     local raw = measure:GetStringValue()
     if not raw or raw == '' then
-        FetchNextFavSchedule(1)
         return
     end
 
@@ -844,7 +923,6 @@ function ParseBKFC()
     SKIN:Bang('!UpdateMeterGroup', 'ContentGroup')
     SKIN:Bang('!Redraw')
 
-    ChainAfterBKFC()
 end
 
 function ChainAfterBKFC()
@@ -901,7 +979,7 @@ local SMX_SCHEDULE = {
     { date = '2026-09-26', name = 'SMX World Championship' },
 }
 
-function ParseSMX()
+function ParseSMXBody()
     leagueLoaded['SMX'] = true
 
     -- Try fetching schedule from GitHub JSON first, fall back to hardcoded table
@@ -985,40 +1063,31 @@ function ParseSMX()
     SKIN:Bang('!UpdateMeterGroup', 'ContentGroup')
     SKIN:Bang('!Redraw')
 
-    -- Chain to next league in configurable order
-    ChainNextLeague('SMX')
 end
 
 -- =====================
 -- F1 PARSING
 -- =====================
 
-function ParseF1()
+function ParseF1Body(rawOverride)
     leagueLoaded['F1'] = true
 
-    local measure = SKIN:GetMeasure('F1WebParser')
-    if not measure then
-        ChainNextLeague('F1')
-        return
+    local raw = rawOverride
+    if not raw then
+        local measure = SKIN:GetMeasure('F1WebParser')
+        if not measure then return end
+        raw = measure:GetStringValue()
     end
-
-    local raw = measure:GetStringValue()
     if not raw or raw == '' then
         SKIN:Bang('!SetVariable', 'F1GameCount', '0')
-        UpdateLayout()
-        SKIN:Bang('!UpdateMeterGroup', 'ContentGroup')
-        SKIN:Bang('!Redraw')
-        ChainNextLeague('F1')
         return
     end
-
     local ok, data = pcall(json.parse, raw)
     if not ok or not data then
         SKIN:Bang('!SetVariable', 'F1GameCount', '0')
         UpdateLayout()
         SKIN:Bang('!UpdateMeterGroup', 'ContentGroup')
         SKIN:Bang('!Redraw')
-        ChainNextLeague('F1')
         return
     end
 
@@ -1103,7 +1172,6 @@ function ParseF1()
     SKIN:Bang('!UpdateMeterGroup', 'ContentGroup')
     SKIN:Bang('!Redraw')
 
-    ChainNextLeague('F1')
 end
 
 -- Override favorites with live scoreboard data when available
@@ -1118,7 +1186,9 @@ function CheckFavoritesLive()
                 local awayAbbr = SKIN:GetVariable(league .. 'AwayAbbr' .. gi, ''):upper()
 
                 for fi, fav in ipairs(favTeams) do
-                    if fi <= MAX_FAVORITES and (fav.abbr == homeAbbr or fav.abbr == awayAbbr) then
+                    -- Only teams that survived the ApplyFavDisplay() filter own a row.
+                    local slot = favDisplaySlot[fi]
+                    if slot and (fav.abbr == homeAbbr or fav.abbr == awayAbbr) then
                         local homeScore = SKIN:GetVariable(league .. 'HomeScore' .. gi, '')
                         local awayScore = SKIN:GetVariable(league .. 'AwayScore' .. gi, '')
                         local status = SKIN:GetVariable(league .. 'Status' .. gi, '')
@@ -1133,12 +1203,12 @@ function CheckFavoritesLive()
                             end
                         end
 
-                        SKIN:Bang('!SetVariable', 'FavAway' .. fi, awayAbbr)
-                        SKIN:Bang('!SetVariable', 'FavHome' .. fi, homeAbbr)
-                        SKIN:Bang('!SetVariable', 'FavAwayScore' .. fi, awayScore)
-                        SKIN:Bang('!SetVariable', 'FavHomeScore' .. fi, homeScore)
-                        SKIN:Bang('!SetVariable', 'FavStatus' .. fi, displayStatus)
-                        SKIN:Bang('!SetVariable', 'FavStatusType' .. fi, status)
+                        SKIN:Bang('!SetVariable', 'FavAway' .. slot, awayAbbr)
+                        SKIN:Bang('!SetVariable', 'FavHome' .. slot, homeAbbr)
+                        SKIN:Bang('!SetVariable', 'FavAwayScore' .. slot, awayScore)
+                        SKIN:Bang('!SetVariable', 'FavHomeScore' .. slot, homeScore)
+                        SKIN:Bang('!SetVariable', 'FavStatus' .. slot, displayStatus)
+                        SKIN:Bang('!SetVariable', 'FavStatusType' .. slot, status)
                     end
                 end
             end
@@ -1168,16 +1238,27 @@ local function SetRowVisibility(base, index, y, topBound, botBound, isFav, rowH)
         pre .. 'HomeScore' .. index,
         pre .. 'Status' .. index,
     }
+    -- Favorite rows carry a league tag; two teams can share an abbreviation
+    -- (NFL:SEA and MLB:SEA both read "SEA"), so the row has to say which sport.
+    local tag = isFav and (pre .. 'League' .. index) or nil
+
     if y >= topBound and (y + rowH) <= botBound then
         for _, name in ipairs(names) do
             SKIN:Bang('!SetOption', name, 'Y', yStr)
             SKIN:Bang('!ShowMeter', name)
             SKIN:Bang('!UpdateMeter', name)
         end
+        if tag then
+            -- Smaller font than the rest of the row, so nudge it onto the same baseline
+            SKIN:Bang('!SetOption', tag, 'Y', tostring(y + 2))
+            SKIN:Bang('!ShowMeter', tag)
+            SKIN:Bang('!UpdateMeter', tag)
+        end
     else
         for _, name in ipairs(names) do
             SKIN:Bang('!HideMeter', name)
         end
+        if tag then SKIN:Bang('!HideMeter', tag) end
     end
 end
 
@@ -1245,6 +1326,13 @@ function UpdateLayout()
             else
                 local visCount = leagueExpanded[league] and gameCount or math.min(gameCount, maxVisible)
                 y = y + visCount * rowH
+                -- Date group headings occupy a row of their own
+                local hdrs = leagueDateHeaders[league]
+                if hdrs then
+                    for i = 1, visCount do
+                        if hdrs[i] then y = y + DATE_HDR_H end
+                    end
+                end
                 if gameCount > maxVisible then
                     y = y + 4 + rowH  -- padding + "More" toggle row
                 end
@@ -1301,6 +1389,7 @@ function UpdateLayout()
                 SKIN:Bang('!HideMeter', pre .. 'Home' .. i)
                 SKIN:Bang('!HideMeter', pre .. 'HomeScore' .. i)
                 SKIN:Bang('!HideMeter', pre .. 'Status' .. i)
+                SKIN:Bang('!HideMeter', pre .. 'League' .. i)
             end
         end
         if #visibleLeagues > 0 then
@@ -1321,6 +1410,7 @@ function UpdateLayout()
             SKIN:Bang('!HideMeter', 'MeterFavHome' .. i)
             SKIN:Bang('!HideMeter', 'MeterFavHomeScore' .. i)
             SKIN:Bang('!HideMeter', 'MeterFavStatus' .. i)
+            SKIN:Bang('!HideMeter', 'MeterFavLeague' .. i)
         end
     end
 
@@ -1356,6 +1446,7 @@ function UpdateLayout()
                 end
                 SKIN:Bang('!HideMeter', 'Meter' .. league .. 'More')
                 for i = 1, MAX_GAMES do
+                    if DATE_GROUPED[league] then SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Date' .. i) end
                     SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Away' .. i)
                     SKIN:Bang('!HideMeter', 'Meter' .. league .. 'AwayScore' .. i)
                     SKIN:Bang('!HideMeter', 'Meter' .. league .. 'At' .. i)
@@ -1367,12 +1458,20 @@ function UpdateLayout()
                 SKIN:Bang('!HideMeter', 'Meter' .. league .. 'NoGames')
                 SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Loading')
                 local visCount = leagueExpanded[league] and gameCount or math.min(gameCount, maxVisible)
+                local hdrs = leagueDateHeaders[league]
 
                 for i = 1, MAX_GAMES do
                     if i <= visCount then
+                        if hdrs and hdrs[i] then
+                            SetMeterVisibility('Meter' .. league .. 'Date' .. i, y, topBound, botBound, 0, DATE_HDR_H)
+                            y = y + DATE_HDR_H
+                        elseif DATE_GROUPED[league] then
+                            SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Date' .. i)
+                        end
                         SetRowVisibility(league, i, y, topBound, botBound, false, rowH)
                         y = y + rowH
                     else
+                        if DATE_GROUPED[league] then SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Date' .. i) end
                         SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Away' .. i)
                         SKIN:Bang('!HideMeter', 'Meter' .. league .. 'AwayScore' .. i)
                         SKIN:Bang('!HideMeter', 'Meter' .. league .. 'At' .. i)
@@ -1417,6 +1516,7 @@ function UpdateLayout()
             SKIN:Bang('!HideMeter', 'Meter' .. league .. 'More')
             SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Divider')
             for i = 1, MAX_GAMES do
+                if DATE_GROUPED[league] then SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Date' .. i) end
                 SKIN:Bang('!HideMeter', 'Meter' .. league .. 'Away' .. i)
                 SKIN:Bang('!HideMeter', 'Meter' .. league .. 'AwayScore' .. i)
                 SKIN:Bang('!HideMeter', 'Meter' .. league .. 'At' .. i)
@@ -1477,6 +1577,8 @@ end
 function ResetFavorites()
     favTeams = {}
     favScheduleData = {}
+    favDisplaySlot = {}
+    leagueDateHeaders = {}
     leagueExpanded = { NBA = false, NFL = false, NCAAM = false, MLB = false, UFC = false, BKFC = false, SMX = false, F1 = false }
     leagueLoaded = { NBA = false, NFL = false, NCAAM = false, MLB = false, UFC = false, BKFC = false, SMX = false, F1 = false }
     SKIN:Bang('!SetVariable', 'ScrollOffset', '0')
@@ -1488,6 +1590,7 @@ function ResetFavorites()
         SKIN:Bang('!SetVariable', 'FavHomeScore' .. i, '')
         SKIN:Bang('!SetVariable', 'FavStatus' .. i, '')
         SKIN:Bang('!SetVariable', 'FavStatusType' .. i, '')
+        SKIN:Bang('!SetVariable', 'FavLeague' .. i, '')
     end
     SKIN:Bang('!SetVariable', 'UFCEventName', '')
     SKIN:Bang('!SetVariable', 'BKFCSubheading', 'Upcoming Events')
@@ -1504,6 +1607,9 @@ function ResetFavorites()
             SKIN:Bang('!SetVariable', league .. 'Status' .. i, '')
             SKIN:Bang('!SetVariable', league .. 'Clock' .. i, '')
             SKIN:Bang('!SetVariable', league .. 'Period' .. i, '')
+            if DATE_GROUPED[league] then
+                SKIN:Bang('!SetVariable', league .. 'DateHdr' .. i, '')
+            end
         end
     end
     SetupFavSchedules()
@@ -1600,4 +1706,167 @@ function ScrollToPosition(mouseY)
     UpdateLayout()
     SKIN:Bang('!UpdateMeterGroup', 'ContentGroup')
     SKIN:Bang('!Redraw')
+end
+
+-- =====================
+-- FAULT-TOLERANT PARSE WRAPPERS
+-- =====================
+-- Every Parse* entry point below is invoked by a WebParser FinishAction (or by
+-- its OnConnectErrorAction / OnRegExpErrorAction). The fetch chain is a linked
+-- list -- NBA -> NFL -> ... -> favorites -- so any parse that bailed out early
+-- used to be a dead end: one bad response and every league after it, plus all
+-- favorite schedules, silently never loaded.
+--
+-- The wrappers guarantee four things:
+--   1. The chain always advances, even if the body errors or the API returns
+--      garbage. One broken source cannot take the whole widget down.
+--   2. Every good response is written to disk, so a later failure can replay it.
+--   3. A failed fetch falls back to that cache instead of blanking the section,
+--      and the league header says "(cached)" so stale data is never passed off
+--      as live.
+--   4. Only when there is no cache either does a league read "Data unavailable".
+
+-- On-disk cache of the last good response per source. Survives skin refreshes
+-- and reboots, which is the point: ESPN being unreachable for an hour should
+-- cost you freshness, not the whole scoreboard.
+local function CachePath(key)
+    return SKIN:GetVariable('@') .. 'Cache/' .. key .. '.txt'
+end
+
+local function CacheWrite(key, text)
+    if not text or text == '' then return end
+    local f = io.open(CachePath(key), 'wb')
+    if not f then return end
+    f:write(text)
+    f:close()
+end
+
+local function CacheRead(key)
+    local f = io.open(CachePath(key), 'rb')
+    if not f then return nil end
+    local text = f:read('*a')
+    f:close()
+    if text == '' then return nil end
+    return text
+end
+
+-- Cheap sanity check on what the WebParser handed us. An HTML error page
+-- (Akamai's 403, a captive portal, a Cloudflare interstitial) is the common
+-- failure and is trivially distinguishable from the JSON we expect.
+local function PayloadLooksUsable(measureName, expectJson)
+    local measure = SKIN:GetMeasure(measureName)
+    if not measure then return false end
+    local raw = measure:GetStringValue()
+    if not raw or raw == '' then return false end
+    if expectJson and raw:match('^%s*<') then return false end
+    return true
+end
+
+local function RawOf(measureName)
+    local measure = SKIN:GetMeasure(measureName)
+    return measure and measure:GetStringValue() or nil
+end
+
+-- Says, in the section header and the empty-state row, where this data came from.
+local function SetLeagueStatus(league, live, fromCache)
+    local header = 'Meter' .. league .. 'Header'
+    local empty = 'Meter' .. league .. 'NoGames'
+    if live then
+        SKIN:Bang('!SetOption', header, 'Text', league)
+        SKIN:Bang('!SetOption', empty, 'Text', 'No games today')
+    elseif fromCache then
+        SKIN:Bang('!SetOption', header, 'Text', league .. '  (cached)')
+        SKIN:Bang('!SetOption', empty, 'Text', 'No games today')
+    else
+        SKIN:Bang('!SetOption', header, 'Text', league)
+        SKIN:Bang('!SetOption', empty, 'Text', 'Data unavailable')
+    end
+    SKIN:Bang('!UpdateMeter', header)
+end
+
+-- Runs the body, swallows anything it throws, then always advances the chain.
+local function SafeParse(label, body, chain)
+    local ok, err = pcall(body)
+    if not ok then
+        SKIN:Bang('!Log', 'EsoSports: ' .. label .. ' parse failed, skipping (' .. tostring(err) .. ')', 'Warning')
+    end
+    -- Chaining sits outside the body's pcall and inside its own: a league that
+    -- cannot parse must still hand off to the next one.
+    local chainOk, chainErr = pcall(chain)
+    if not chainOk then
+        SKIN:Bang('!Log', 'EsoSports: ' .. label .. ' failed to advance the fetch chain (' .. tostring(chainErr) .. ')', 'Error')
+    end
+end
+
+-- Shared shape for the ESPN-backed leagues: cache on success, replay on failure.
+local function ParseWithCache(league, measureName, bodyFn, chainFn)
+    local live = PayloadLooksUsable(measureName, true)
+    local cached = nil
+    if live then
+        CacheWrite(league, RawOf(measureName))
+    else
+        cached = CacheRead(league)
+    end
+    leagueLoaded[league] = true
+    SetLeagueStatus(league, live, cached ~= nil)
+
+    SafeParse(league, function()
+        if live then
+            bodyFn(nil)
+        elseif cached then
+            bodyFn(cached)
+        end
+    end, chainFn)
+end
+
+function ParseLeague(league)
+    ParseWithCache(league, league .. 'WebParser',
+        function(raw) ParseLeagueBody(league, raw) end,
+        function() ChainNextLeague(league) end)
+end
+
+function ParseUFC()
+    ParseWithCache('UFC', 'UFCWebParser', ParseUFCBody, ChainAfterUFC)
+end
+
+function ParseF1()
+    ParseWithCache('F1', 'F1WebParser', ParseF1Body, function() ChainNextLeague('F1') end)
+end
+
+function ParseBKFC()
+    -- bkfc.com serves HTML by design, so only emptiness counts as a failure.
+    local live = PayloadLooksUsable('BKFCWebParser', false)
+    leagueLoaded['BKFC'] = true
+    SetLeagueStatus('BKFC', live, false)
+    SafeParse('BKFC',
+        function() if live then ParseBKFCBody() end end,
+        ChainAfterBKFC)
+end
+
+function ParseSMX()
+    -- SMX falls back to its built-in schedule table, so it is never unavailable.
+    SafeParse('SMX', ParseSMXBody, function() ChainNextLeague('SMX') end)
+end
+
+function ParseFavSchedule(index)
+    local measureName = 'FavSchedule' .. index
+    local team = favTeams[index]
+    -- Keyed by team, not slot: the slot a team occupies changes as favorites
+    -- come in and out of season.
+    local key = team and ('Fav-' .. tostring(team.league) .. '-' .. tostring(team.abbr)) or nil
+    local live = PayloadLooksUsable(measureName, true)
+    local cached = nil
+    if live and key then
+        CacheWrite(key, RawOf(measureName))
+    elseif key then
+        cached = CacheRead(key)
+    end
+
+    SafeParse('FavSchedule' .. tostring(index), function()
+        if live then
+            ParseFavScheduleBody(index, nil)
+        elseif cached then
+            ParseFavScheduleBody(index, cached)
+        end
+    end, function() FetchNextFavSchedule(index + 1) end)
 end

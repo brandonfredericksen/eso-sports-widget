@@ -25,6 +25,10 @@ LeagueOrder=NBA,NFL,NCAAM,MLB,UFC,BKFC,SMX,F1
 ; Use LEAGUE:ABBR prefix for ambiguous abbreviations (e.g., NFL:SEA, MLB:SEA)
 FavoriteTeams=
 
+; Hide a favorite team when its next game is more than this many days away
+; (or when it has none scheduled at all). Set to 0 to always show every team.
+FavoriteMaxDaysAhead=30
+
 ; Refresh interval in minutes
 RefreshMinutes=5
 
@@ -59,6 +63,14 @@ ScrollOffset=0
 ScrollStep=84
 MaxSkinHeight=600
 
+
+; Network identity - do not edit unless requests start failing
+; ESPN sits behind Akamai bot protection, which as of Aug 2026 returns HTTP 403
+; to any request whose User-Agent claims to be a browser (or is blank/unknown).
+; Plain API-client UAs are still let through, so the ESPN measures send one.
+ESPNUserAgent=curl/8.5.0
+; Used only for bkfc.com, which is a real site and expects a browser UA.
+BrowserUserAgent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36
 ; Internal - do not edit
 FavCount=0
 NBAGameCount=0

@@ -15,7 +15,10 @@ RegExp=(?siU)^(.*)$
 UpdateRate=(#RefreshMinutes# * 60)
 Disabled=1
 FinishAction=[!CommandMeasure LuaFavorites "ParseLeague('NBA')"]
-UserAgent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36
+OnConnectErrorAction=[!CommandMeasure LuaFavorites "ParseLeague('NBA')"]
+OnRegExpErrorAction=[!CommandMeasure LuaFavorites "ParseLeague('NBA')"]
+UserAgent=#ESPNUserAgent#
+Header=Connection: close
 
 ; =====================
 ; NFL DATA
@@ -27,7 +30,10 @@ RegExp=(?siU)^(.*)$
 UpdateRate=(#RefreshMinutes# * 60)
 Disabled=1
 FinishAction=[!CommandMeasure LuaFavorites "ParseLeague('NFL')"]
-UserAgent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36
+OnConnectErrorAction=[!CommandMeasure LuaFavorites "ParseLeague('NFL')"]
+OnRegExpErrorAction=[!CommandMeasure LuaFavorites "ParseLeague('NFL')"]
+UserAgent=#ESPNUserAgent#
+Header=Connection: close
 
 ; =====================
 ; NCAAM DATA
@@ -39,7 +45,10 @@ RegExp=(?siU)^(.*)$
 UpdateRate=(#RefreshMinutes# * 60)
 Disabled=1
 FinishAction=[!CommandMeasure LuaFavorites "ParseLeague('NCAAM')"]
-UserAgent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36
+OnConnectErrorAction=[!CommandMeasure LuaFavorites "ParseLeague('NCAAM')"]
+OnRegExpErrorAction=[!CommandMeasure LuaFavorites "ParseLeague('NCAAM')"]
+UserAgent=#ESPNUserAgent#
+Header=Connection: close
 
 ; =====================
 ; MLB DATA
@@ -51,7 +60,10 @@ RegExp=(?siU)^(.*)$
 UpdateRate=(#RefreshMinutes# * 60)
 Disabled=1
 FinishAction=[!CommandMeasure LuaFavorites "ParseLeague('MLB')"]
-UserAgent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36
+OnConnectErrorAction=[!CommandMeasure LuaFavorites "ParseLeague('MLB')"]
+OnRegExpErrorAction=[!CommandMeasure LuaFavorites "ParseLeague('MLB')"]
+UserAgent=#ESPNUserAgent#
+Header=Connection: close
 
 ; =====================
 ; UFC DATA
@@ -63,11 +75,16 @@ RegExp=(?siU)^(.*)$
 UpdateRate=(#RefreshMinutes# * 60)
 Disabled=1
 FinishAction=[!CommandMeasure LuaFavorites "ParseUFC()"]
-UserAgent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36
+OnConnectErrorAction=[!CommandMeasure LuaFavorites "ParseUFC()"]
+OnRegExpErrorAction=[!CommandMeasure LuaFavorites "ParseUFC()"]
+UserAgent=#ESPNUserAgent#
+Header=Connection: close
 
 ; =====================
 ; BKFC DATA
 ; =====================
+; Scrapes bkfc.com (a normal website, not an API), so it keeps a browser
+; User-Agent -- unlike the ESPN measures above. See #ESPNUserAgent# notes.
 [BKFCWebParser]
 Measure=WebParser
 URL=about:blank
@@ -75,8 +92,10 @@ RegExp=(?siU)^(.*)$
 UpdateRate=86400
 Disabled=1
 FinishAction=[!CommandMeasure LuaFavorites "ParseBKFC()"]
+OnConnectErrorAction=[!CommandMeasure LuaFavorites "ParseBKFC()"]
+OnRegExpErrorAction=[!CommandMeasure LuaFavorites "ParseBKFC()"]
 DynamicVariables=1
-UserAgent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36
+UserAgent=#BrowserUserAgent#
 
 ; =====================
 ; SMX SCHEDULE DATA
@@ -102,7 +121,10 @@ RegExp=(?siU)^(.*)$
 UpdateRate=(#RefreshMinutes# * 60)
 Disabled=1
 FinishAction=[!CommandMeasure LuaFavorites "ParseF1()"]
-UserAgent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36
+OnConnectErrorAction=[!CommandMeasure LuaFavorites "ParseF1()"]
+OnRegExpErrorAction=[!CommandMeasure LuaFavorites "ParseF1()"]
+UserAgent=#ESPNUserAgent#
+Header=Connection: close
 
 ; =====================
 ; FAVORITE SCHEDULES
@@ -113,8 +135,12 @@ URL=about:blank
 RegExp=(?siU)^(.*)$
 UpdateRate=(#RefreshMinutes# * 60)
 FinishAction=[!CommandMeasure LuaFavorites "ParseFavSchedule(1)"]
+OnConnectErrorAction=[!CommandMeasure LuaFavorites "ParseFavSchedule(1)"]
+OnRegExpErrorAction=[!CommandMeasure LuaFavorites "ParseFavSchedule(1)"]
 DynamicVariables=1
 Disabled=1
+UserAgent=#ESPNUserAgent#
+Header=Connection: close
 
 [FavSchedule2]
 Measure=WebParser
@@ -122,8 +148,12 @@ URL=about:blank
 RegExp=(?siU)^(.*)$
 UpdateRate=(#RefreshMinutes# * 60)
 FinishAction=[!CommandMeasure LuaFavorites "ParseFavSchedule(2)"]
+OnConnectErrorAction=[!CommandMeasure LuaFavorites "ParseFavSchedule(2)"]
+OnRegExpErrorAction=[!CommandMeasure LuaFavorites "ParseFavSchedule(2)"]
 DynamicVariables=1
 Disabled=1
+UserAgent=#ESPNUserAgent#
+Header=Connection: close
 
 [FavSchedule3]
 Measure=WebParser
@@ -131,8 +161,12 @@ URL=about:blank
 RegExp=(?siU)^(.*)$
 UpdateRate=(#RefreshMinutes# * 60)
 FinishAction=[!CommandMeasure LuaFavorites "ParseFavSchedule(3)"]
+OnConnectErrorAction=[!CommandMeasure LuaFavorites "ParseFavSchedule(3)"]
+OnRegExpErrorAction=[!CommandMeasure LuaFavorites "ParseFavSchedule(3)"]
 DynamicVariables=1
 Disabled=1
+UserAgent=#ESPNUserAgent#
+Header=Connection: close
 
 [FavSchedule4]
 Measure=WebParser
@@ -140,8 +174,12 @@ URL=about:blank
 RegExp=(?siU)^(.*)$
 UpdateRate=(#RefreshMinutes# * 60)
 FinishAction=[!CommandMeasure LuaFavorites "ParseFavSchedule(4)"]
+OnConnectErrorAction=[!CommandMeasure LuaFavorites "ParseFavSchedule(4)"]
+OnRegExpErrorAction=[!CommandMeasure LuaFavorites "ParseFavSchedule(4)"]
 DynamicVariables=1
 Disabled=1
+UserAgent=#ESPNUserAgent#
+Header=Connection: close
 
 [FavSchedule5]
 Measure=WebParser
@@ -149,8 +187,12 @@ URL=about:blank
 RegExp=(?siU)^(.*)$
 UpdateRate=(#RefreshMinutes# * 60)
 FinishAction=[!CommandMeasure LuaFavorites "ParseFavSchedule(5)"]
+OnConnectErrorAction=[!CommandMeasure LuaFavorites "ParseFavSchedule(5)"]
+OnRegExpErrorAction=[!CommandMeasure LuaFavorites "ParseFavSchedule(5)"]
 DynamicVariables=1
 Disabled=1
+UserAgent=#ESPNUserAgent#
+Header=Connection: close
 
 [FavSchedule6]
 Measure=WebParser
@@ -158,6 +200,9 @@ URL=about:blank
 RegExp=(?siU)^(.*)$
 UpdateRate=(#RefreshMinutes# * 60)
 FinishAction=[!CommandMeasure LuaFavorites "ParseFavSchedule(6)"]
+OnConnectErrorAction=[!CommandMeasure LuaFavorites "ParseFavSchedule(6)"]
+OnRegExpErrorAction=[!CommandMeasure LuaFavorites "ParseFavSchedule(6)"]
 DynamicVariables=1
 Disabled=1
-
+UserAgent=#ESPNUserAgent#
+Header=Connection: close

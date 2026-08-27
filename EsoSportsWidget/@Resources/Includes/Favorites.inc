@@ -29,7 +29,7 @@ Group=FavoritesGroup | ContentGroup
 ; --- Favorite Row 1 ---
 [MeterFavAway1]
 Meter=String
-X=20
+X=62
 Y=4R
 FontFace=#FontFace#
 FontSize=#FontSize#
@@ -43,7 +43,7 @@ Group=FavoritesGroup | ContentGroup
 
 [MeterFavAwayScore1]
 Meter=String
-X=75
+X=117
 Y=0r
 FontFace=#FontFace#
 FontSize=#FontSize#
@@ -57,7 +57,7 @@ Group=FavoritesGroup | ContentGroup
 
 [MeterFavAt1]
 Meter=String
-X=108
+X=150
 Y=0r
 FontFace=#FontFace#
 FontSize=#FontSize#
@@ -70,7 +70,7 @@ Group=FavoritesGroup | ContentGroup
 
 [MeterFavHome1]
 Meter=String
-X=128
+X=170
 Y=0r
 FontFace=#FontFace#
 FontSize=#FontSize#
@@ -84,7 +84,7 @@ Group=FavoritesGroup | ContentGroup
 
 [MeterFavHomeScore1]
 Meter=String
-X=175
+X=217
 Y=0r
 FontFace=#FontFace#
 FontSize=#FontSize#
@@ -112,7 +112,7 @@ Group=FavoritesGroup | ContentGroup
 ; --- Favorite Row 2 ---
 [MeterFavAway2]
 Meter=String
-X=20
+X=62
 Y=4R
 FontFace=#FontFace#
 FontSize=#FontSize#
@@ -126,7 +126,7 @@ Group=FavoritesGroup | ContentGroup
 
 [MeterFavAwayScore2]
 Meter=String
-X=75
+X=117
 Y=0r
 FontFace=#FontFace#
 FontSize=#FontSize#
@@ -140,7 +140,7 @@ Group=FavoritesGroup | ContentGroup
 
 [MeterFavAt2]
 Meter=String
-X=108
+X=150
 Y=0r
 FontFace=#FontFace#
 FontSize=#FontSize#
@@ -153,7 +153,7 @@ Group=FavoritesGroup | ContentGroup
 
 [MeterFavHome2]
 Meter=String
-X=128
+X=170
 Y=0r
 FontFace=#FontFace#
 FontSize=#FontSize#
@@ -167,7 +167,7 @@ Group=FavoritesGroup | ContentGroup
 
 [MeterFavHomeScore2]
 Meter=String
-X=175
+X=217
 Y=0r
 FontFace=#FontFace#
 FontSize=#FontSize#
@@ -195,7 +195,7 @@ Group=FavoritesGroup | ContentGroup
 ; --- Favorite Row 3 ---
 [MeterFavAway3]
 Meter=String
-X=20
+X=62
 Y=4R
 FontFace=#FontFace#
 FontSize=#FontSize#
@@ -209,7 +209,7 @@ Group=FavoritesGroup | ContentGroup
 
 [MeterFavAwayScore3]
 Meter=String
-X=75
+X=117
 Y=0r
 FontFace=#FontFace#
 FontSize=#FontSize#
@@ -223,7 +223,7 @@ Group=FavoritesGroup | ContentGroup
 
 [MeterFavAt3]
 Meter=String
-X=108
+X=150
 Y=0r
 FontFace=#FontFace#
 FontSize=#FontSize#
@@ -236,7 +236,7 @@ Group=FavoritesGroup | ContentGroup
 
 [MeterFavHome3]
 Meter=String
-X=128
+X=170
 Y=0r
 FontFace=#FontFace#
 FontSize=#FontSize#
@@ -250,7 +250,7 @@ Group=FavoritesGroup | ContentGroup
 
 [MeterFavHomeScore3]
 Meter=String
-X=175
+X=217
 Y=0r
 FontFace=#FontFace#
 FontSize=#FontSize#
@@ -278,7 +278,7 @@ Group=FavoritesGroup | ContentGroup
 ; --- Favorite Row 4 ---
 [MeterFavAway4]
 Meter=String
-X=20
+X=62
 Y=4R
 FontFace=#FontFace#
 FontSize=#FontSize#
@@ -292,7 +292,7 @@ Group=FavoritesGroup | ContentGroup
 
 [MeterFavAwayScore4]
 Meter=String
-X=75
+X=117
 Y=0r
 FontFace=#FontFace#
 FontSize=#FontSize#
@@ -306,7 +306,7 @@ Group=FavoritesGroup | ContentGroup
 
 [MeterFavAt4]
 Meter=String
-X=108
+X=150
 Y=0r
 FontFace=#FontFace#
 FontSize=#FontSize#
@@ -319,7 +319,7 @@ Group=FavoritesGroup | ContentGroup
 
 [MeterFavHome4]
 Meter=String
-X=128
+X=170
 Y=0r
 FontFace=#FontFace#
 FontSize=#FontSize#
@@ -333,7 +333,7 @@ Group=FavoritesGroup | ContentGroup
 
 [MeterFavHomeScore4]
 Meter=String
-X=175
+X=217
 Y=0r
 FontFace=#FontFace#
 FontSize=#FontSize#
@@ -364,5 +364,70 @@ Meter=Shape
 Shape=Line 0,0,(#SkinWidth# - 20),0 | StrokeWidth 1 | Stroke Color #DimColor#,60
 X=10
 DynamicVariables=1
+Group=FavoritesGroup | ContentGroup
+
+
+; --- League tags ---
+; Which sport each favorite row belongs to. Two teams can share an
+; abbreviation (NFL:SEA and MLB:SEA both render as "SEA"), so the row
+; is prefixed with its league in that league.
+[MeterFavLeague1]
+Meter=String
+X=20
+Y=0
+FontFace=#FontFace#
+FontSize=9
+FontWeight=700
+FontColor=#FavLeagueColor1#
+StringAlign=Left
+AntiAlias=1
+Text=#FavLeague1#
+DynamicVariables=1
+Hidden=1
+Group=FavoritesGroup | ContentGroup
+
+[MeterFavLeague2]
+Meter=String
+X=20
+Y=0
+FontFace=#FontFace#
+FontSize=9
+FontWeight=700
+FontColor=#FavLeagueColor2#
+StringAlign=Left
+AntiAlias=1
+Text=#FavLeague2#
+DynamicVariables=1
+Hidden=1
+Group=FavoritesGroup | ContentGroup
+
+[MeterFavLeague3]
+Meter=String
+X=20
+Y=0
+FontFace=#FontFace#
+FontSize=9
+FontWeight=700
+FontColor=#FavLeagueColor3#
+StringAlign=Left
+AntiAlias=1
+Text=#FavLeague3#
+DynamicVariables=1
+Hidden=1
+Group=FavoritesGroup | ContentGroup
+
+[MeterFavLeague4]
+Meter=String
+X=20
+Y=0
+FontFace=#FontFace#
+FontSize=9
+FontWeight=700
+FontColor=#FavLeagueColor4#
+StringAlign=Left
+AntiAlias=1
+Text=#FavLeague4#
+DynamicVariables=1
+Hidden=1
 Group=FavoritesGroup | ContentGroup
 
