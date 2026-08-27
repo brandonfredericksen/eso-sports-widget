@@ -28,6 +28,13 @@ local DATE_GROUP_GAP = 8
 -- that filtering one out never leaves a gap; nil means "not currently shown".
 local favDisplaySlot = {}
 
+-- The one source the active fetch chain is waiting on. Each measure also has its
+-- own UpdateRate, so responses arrive that no chain asked for; only the response
+-- matching this cursor is allowed to advance the chain. Without it every timer
+-- tick starts another concurrent walk, and WinInet only allows two connections
+-- per host -- the ESPN measures then starve each other into 60s timeouts.
+local chainCursor = nil
+
 -- Converts an ESPN UTC timestamp into a table of local-time parts, honouring the
 -- user's TimezoneOffset. Returns nil when the string is not a timestamp.
 local function ToLocalTime(dateStr)
@@ -305,12 +312,14 @@ function FetchNextFavSchedule(startIndex)
     for i = startIndex, count do
         local url = GetTeamUrl(favTeams[i].abbr, favTeams[i].league)
         if url then
+            chainCursor = 'FavSchedule' .. i
             SKIN:Bang('!EnableMeasure', 'FavSchedule' .. i)
             SKIN:Bang('!CommandMeasure', 'FavSchedule' .. i, 'Update')
             return
         end
     end
 
+    chainCursor = nil
     -- Reached the end of the whole fetch chain. Refresh once more so the
     -- layout reflects whatever data did arrive, even if every league failed.
     UpdateLayout()
@@ -531,6 +540,7 @@ function ChainNextLeague(currentLeague)
 end
 
 function TriggerLeague(league)
+    chainCursor = league
     if league == 'BKFC' then
         SKIN:Bang('!SetOption', 'BKFCWebParser', 'URL', 'https://www.bkfc.com/events')
         SKIN:Bang('!EnableMeasure', 'BKFCWebParser')
@@ -1622,6 +1632,7 @@ function ResetFavorites()
         end
     end
     SetupFavSchedules()
+    PrimeFromCache()
     UpdateLayout()
 
     -- Kick off sequential fetch chain using configurable order
@@ -1809,6 +1820,7 @@ end
 
 -- Shared shape for the ESPN-backed leagues: cache on success, replay on failure.
 local function ParseWithCache(league, measureName, bodyFn, chainFn)
+    local owns = (chainCursor == league)
     local live = PayloadLooksUsable(measureName, true)
     local cached = nil
     if live then
@@ -1825,7 +1837,7 @@ local function ParseWithCache(league, measureName, bodyFn, chainFn)
         elseif cached then
             bodyFn(cached)
         end
-    end, chainFn)
+    end, function() if owns then chainFn() end end)
 end
 
 function ParseLeague(league)
@@ -1844,17 +1856,19 @@ end
 
 function ParseBKFC()
     -- bkfc.com serves HTML by design, so only emptiness counts as a failure.
+    local owns = (chainCursor == 'BKFC')
     local live = PayloadLooksUsable('BKFCWebParser', false)
     leagueLoaded['BKFC'] = true
     SetLeagueStatus('BKFC', live, false)
     SafeParse('BKFC',
         function() if live then ParseBKFCBody() end end,
-        ChainAfterBKFC)
+        function() if owns then ChainAfterBKFC() end end)
 end
 
 function ParseSMX()
     -- SMX falls back to its built-in schedule table, so it is never unavailable.
-    SafeParse('SMX', ParseSMXBody, function() ChainNextLeague('SMX') end)
+    local owns = (chainCursor == 'SMX')
+    SafeParse('SMX', ParseSMXBody, function() if owns then ChainNextLeague('SMX') end end)
 end
 
 function ParseFavSchedule(index)
@@ -1863,6 +1877,7 @@ function ParseFavSchedule(index)
     -- Keyed by team, not slot: the slot a team occupies changes as favorites
     -- come in and out of season.
     local key = team and ('Fav-' .. tostring(team.league) .. '-' .. tostring(team.abbr)) or nil
+    local owns = (chainCursor == ('FavSchedule' .. index))
     local live = PayloadLooksUsable(measureName, true)
     local cached = nil
     if live and key then
@@ -1877,5 +1892,43 @@ function ParseFavSchedule(index)
         elseif cached then
             ParseFavScheduleBody(index, cached)
         end
-    end, function() FetchNextFavSchedule(index + 1) end)
+    end, function() if owns then FetchNextFavSchedule(index + 1) end end)
+end
+
+-- Paints whatever is on disk before a single request goes out. The fetch chain
+-- is sequential, so favorites used to appear only after every league ahead of
+-- them had answered -- if ESPN was slow the section stayed empty for minutes
+-- despite a perfectly good cache sitting right there. Priming decouples what is
+-- on screen from how far the chain has walked: you always see the last known
+-- scoreboard immediately, and live data overwrites it as it arrives.
+function PrimeFromCache()
+    for _, lg in ipairs(GetLeagueOrder()) do
+        if tonumber(SKIN:GetVariable('Show' .. lg, '1')) == 1 then
+            local raw = CacheRead(lg)
+            if raw then
+                local ok = pcall(function()
+                    if lg == 'UFC' then
+                        ParseUFCBody(raw)
+                    elseif lg == 'F1' then
+                        ParseF1Body(raw)
+                    elseif DATE_GROUPED[lg] then
+                        ParseLeagueBody(lg, raw)
+                    end
+                end)
+                if ok then SetLeagueStatus(lg, false, true) end
+            end
+        end
+    end
+
+    for i = 1, math.min(#favTeams, MAX_FAVORITES) do
+        local t = favTeams[i]
+        if t then
+            local raw = CacheRead('Fav-' .. tostring(t.league) .. '-' .. tostring(t.abbr))
+            if raw then pcall(ParseFavScheduleBody, i, raw) end
+        end
+    end
+
+    UpdateLayout()
+    SKIN:Bang('!UpdateMeterGroup', 'ContentGroup')
+    SKIN:Bang('!Redraw')
 end
