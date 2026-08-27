@@ -19,7 +19,10 @@ local leagueLoaded = { NBA = false, NFL = false, NCAAM = false, MLB = false, UFC
 -- Row index -> date heading text, for leagues whose games are grouped by date.
 local leagueDateHeaders = {}
 local DATE_GROUPED = { NBA = true, NFL = true, NCAAM = true, MLB = true }
-local DATE_HDR_H = 18
+local DATE_HDR_H = 16
+-- Extra space above a date heading (not the first), so it groups with the games
+-- below it rather than floating between two groups.
+local DATE_GROUP_GAP = 8
 
 -- favTeams index -> favorites display slot. Favorites are packed into slots so
 -- that filtering one out never leaves a gap; nil means "not currently shown".
@@ -1330,7 +1333,10 @@ function UpdateLayout()
                 local hdrs = leagueDateHeaders[league]
                 if hdrs then
                     for i = 1, visCount do
-                        if hdrs[i] then y = y + DATE_HDR_H end
+                        if hdrs[i] then
+                            y = y + DATE_HDR_H
+                            if i > 1 then y = y + DATE_GROUP_GAP end
+                        end
                     end
                 end
                 if gameCount > maxVisible then
@@ -1463,6 +1469,9 @@ function UpdateLayout()
                 for i = 1, MAX_GAMES do
                     if i <= visCount then
                         if hdrs and hdrs[i] then
+                            -- Breathing room above a new date group; the first one
+                            -- already sits under the league header.
+                            if i > 1 then y = y + DATE_GROUP_GAP end
                             SetMeterVisibility('Meter' .. league .. 'Date' .. i, y, topBound, botBound, 0, DATE_HDR_H)
                             y = y + DATE_HDR_H
                         elseif DATE_GROUPED[league] then
