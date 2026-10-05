@@ -1,9 +1,9 @@
 {
-  "updated": "2026-09-28T16:24:53Z",
+  "updated": "2026-10-05T16:45:27Z",
   "season": 2026,
   "events": [
     {
-      "date": "2026-01-10",
+      "date": "2026-01-09",
       "name": "SX Rd 1 - Anaheim",
       "venue": "Angel Stadium",
       "location": "Anaheim, CA",
@@ -11,7 +11,7 @@
       "round": 1
     },
     {
-      "date": "2026-01-17",
+      "date": "2026-01-16",
       "name": "SX Rd 2 - San Diego",
       "venue": "Snapdragon Stadium",
       "location": "San Diego, CA",
@@ -19,7 +19,7 @@
       "round": 2
     },
     {
-      "date": "2026-01-24",
+      "date": "2026-01-23",
       "name": "SX Rd 3 - Anaheim",
       "venue": "Angel Stadium",
       "location": "Anaheim, CA",
@@ -27,103 +27,103 @@
       "round": 3
     },
     {
-      "date": "2026-01-31",
-      "name": "SX Rd 4 - Houston",
-      "venue": "NRG Stadium",
-      "location": "Houston, TX",
+      "date": "2026-01-30",
+      "name": "SX Rd 4 - San Antonio",
+      "venue": "Alamodome",
+      "location": "San Antonio, TX",
       "series": "SX",
       "round": 4
     },
     {
-      "date": "2026-02-07",
-      "name": "SX Rd 5 - Glendale",
-      "venue": "State Farm Stadium",
-      "location": "Glendale, AZ",
+      "date": "2026-02-06",
+      "name": "SX Rd 5 - Tampa",
+      "venue": "Raymond James Stadium",
+      "location": "Tampa, FL",
       "series": "SX",
       "round": 5
     },
     {
-      "date": "2026-02-14",
-      "name": "SX Rd 6 - Seattle",
-      "venue": "Lumen Field",
-      "location": "Seattle, WA",
+      "date": "2026-02-13",
+      "name": "SX Rd 6 - Glendale",
+      "venue": "State Farm Stadium",
+      "location": "Glendale, AZ",
       "series": "SX",
       "round": 6
     },
     {
-      "date": "2026-02-21",
-      "name": "SX Rd 7 - Arlington",
-      "venue": "AT&T Stadium",
-      "location": "Arlington, TX",
+      "date": "2026-02-20",
+      "name": "SX Rd 7 - Detroit",
+      "venue": "Ford Field",
+      "location": "Detroit, MI",
       "series": "SX",
       "round": 7
     },
     {
-      "date": "2026-02-28",
-      "name": "SX Rd 8 - Daytona Beach",
-      "venue": "Daytona International Speedway",
-      "location": "Daytona Beach, FL",
+      "date": "2026-02-27",
+      "name": "SX Rd 8 - Arlington",
+      "venue": "AT&T Stadium",
+      "location": "Arlington, TX",
       "series": "SX",
       "round": 8
     },
     {
-      "date": "2026-03-07",
-      "name": "SX Rd 9 - Indianapolis",
-      "venue": "Lucas Oil Stadium",
-      "location": "Indianapolis, IN",
+      "date": "2026-03-06",
+      "name": "SX Rd 9 - Daytona Beach",
+      "venue": "Daytona International Speedway",
+      "location": "Daytona Beach, FL",
       "series": "SX",
       "round": 9
     },
     {
-      "date": "2026-03-21",
-      "name": "SX Rd 10 - Birmingham",
-      "venue": "Protective Stadium",
-      "location": "Birmingham, AL",
+      "date": "2026-03-13",
+      "name": "SX Rd 10 - Indianapolis",
+      "venue": "Lucas Oil Stadium",
+      "location": "Indianapolis, IN",
       "series": "SX",
       "round": 10
     },
     {
-      "date": "2026-03-28",
-      "name": "SX Rd 11 - Detroit",
-      "venue": "Ford Field",
-      "location": "Detroit, MI",
+      "date": "2026-03-20",
+      "name": "SX Rd 11 - Seattle",
+      "venue": "Lumen Field",
+      "location": "Seattle, WA",
       "series": "SX",
       "round": 11
     },
     {
-      "date": "2026-04-04",
-      "name": "SX Rd 12 - St. Louis",
-      "venue": "The Dome at America\u2019s Center",
-      "location": "St. Louis, MO",
+      "date": "2026-04-03",
+      "name": "SX Rd 12 - Foxborough",
+      "venue": "Gillette Stadium",
+      "location": "Foxborough, MA",
       "series": "SX",
       "round": 12
     },
     {
-      "date": "2026-04-11",
-      "name": "SX Rd 13 - Nashville",
-      "venue": "Nissan Stadium",
-      "location": "Nashville, TN",
+      "date": "2026-04-10",
+      "name": "SX Rd 13 - Baltimore",
+      "venue": "M&T Bank Stadium",
+      "location": "Baltimore, MD",
       "series": "SX",
       "round": 13
     },
     {
-      "date": "2026-04-18",
-      "name": "SX Rd 14 - Cleveland",
-      "venue": "Huntington Bank Field",
-      "location": "Cleveland, OH",
+      "date": "2026-04-17",
+      "name": "SX Rd 14 - East Rutherford",
+      "venue": "MetLife Stadium",
+      "location": "East Rutherford, NJ",
       "series": "SX",
       "round": 14
     },
     {
-      "date": "2026-04-25",
-      "name": "SX Rd 15 - Philadelphia",
-      "venue": "Lincoln Financial Field",
-      "location": "Philadelphia, PA",
+      "date": "2026-04-24",
+      "name": "SX Rd 15 - Pittsburgh",
+      "venue": "Acrisure Stadium",
+      "location": "Pittsburgh, PA",
       "series": "SX",
       "round": 15
     },
     {
-      "date": "2026-05-02",
+      "date": "2026-05-08",
       "name": "SX Rd 16 - Denver",
       "venue": "Empower Field at Mile High",
       "location": "Denver, CO",
@@ -131,7 +131,7 @@
       "round": 16
     },
     {
-      "date": "2026-05-09",
+      "date": "2026-05-15",
       "name": "SX Finale - Salt Lake City",
       "venue": "Rice-Eccles Stadium",
       "location": "Salt Lake City, UT",
@@ -139,7 +139,7 @@
       "round": 0
     },
     {
-      "date": "2026-05-30",
+      "date": "2026-05-29",
       "name": "MX Rd 18 - Fox Raceway",
       "venue": "Fox Raceway",
       "location": "Pala, CA",
@@ -147,15 +147,15 @@
       "round": 18
     },
     {
-      "date": "2026-06-06",
+      "date": "2026-06-05",
       "name": "MX Rd 19 - Hangtown",
       "venue": "Hangtown",
-      "location": "Sacramento, CA",
+      "location": "Rancho Cordova, CA",
       "series": "MX",
       "round": 19
     },
     {
-      "date": "2026-06-13",
+      "date": "2026-06-12",
       "name": "MX Rd 20 - Thunder Valley",
       "venue": "Thunder Valley",
       "location": "Lakewood, CO",
@@ -163,15 +163,15 @@
       "round": 20
     },
     {
-      "date": "2026-06-20",
+      "date": "2026-06-19",
       "name": "MX Rd 21 - High Point",
       "venue": "High Point",
-      "location": "Mount Morris, PA",
+      "location": "Mt. Morris, PA",
       "series": "MX",
       "round": 21
     },
     {
-      "date": "2026-07-04",
+      "date": "2026-07-03",
       "name": "MX Rd 22 - RedBud",
       "venue": "RedBud",
       "location": "Buchanan, MI",
@@ -179,15 +179,15 @@
       "round": 22
     },
     {
-      "date": "2026-07-11",
-      "name": "MX Rd 23 - Southwick",
-      "venue": "Southwick",
+      "date": "2026-07-10",
+      "name": "MX Rd 23 - The Wick 338",
+      "venue": "The Wick 338",
       "location": "Southwick, MA",
       "series": "MX",
       "round": 23
     },
     {
-      "date": "2026-07-18",
+      "date": "2026-07-17",
       "name": "MX Rd 24 - Spring Creek",
       "venue": "Spring Creek",
       "location": "Millville, MN",
@@ -195,7 +195,7 @@
       "round": 24
     },
     {
-      "date": "2026-07-25",
+      "date": "2026-07-24",
       "name": "MX Rd 25 - Washougal",
       "venue": "Washougal",
       "location": "Washougal, WA",
@@ -203,7 +203,7 @@
       "round": 25
     },
     {
-      "date": "2026-08-15",
+      "date": "2026-08-14",
       "name": "MX Rd 26 - Unadilla",
       "venue": "Unadilla",
       "location": "New Berlin, NY",
@@ -211,7 +211,7 @@
       "round": 26
     },
     {
-      "date": "2026-08-22",
+      "date": "2026-08-21",
       "name": "MX Rd 27 - Budds Creek",
       "venue": "Budds Creek",
       "location": "Mechanicsville, MD",
@@ -219,35 +219,11 @@
       "round": 27
     },
     {
-      "date": "2026-08-29",
+      "date": "2026-08-28",
       "name": "MX Finale - Ironman",
       "venue": "Ironman",
       "location": "Crawfordsville, IN",
       "series": "MX",
-      "round": 0
-    },
-    {
-      "date": "2026-09-12",
-      "name": "SMX Playoff Rd 1",
-      "venue": "Historic Crew Stadium",
-      "location": "Columbus, OH",
-      "series": "SMX",
-      "round": 1
-    },
-    {
-      "date": "2026-09-19",
-      "name": "SMX Playoff Rd 2",
-      "venue": "Dignity Health Sports Park",
-      "location": "Los Angeles, CA",
-      "series": "SMX",
-      "round": 2
-    },
-    {
-      "date": "2026-09-26",
-      "name": "SMX World Championship",
-      "venue": "Thunder Ridge Nature Arena",
-      "location": "Ridgedale, MO",
-      "series": "SMX",
       "round": 0
     }
   ]
