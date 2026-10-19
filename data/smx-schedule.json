@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-12T17:19:04Z",
+  "updated": "2026-10-19T15:14:48Z",
   "season": 2026,
   "events": [
     {
@@ -224,6 +224,30 @@
       "venue": "Ironman",
       "location": "Crawfordsville, IN",
       "series": "MX",
+      "round": 0
+    },
+    {
+      "date": "2026-09-11",
+      "name": "SMX Playoff Rd 1",
+      "venue": "TBA",
+      "location": "TBA",
+      "series": "SMX",
+      "round": 1
+    },
+    {
+      "date": "2026-09-18",
+      "name": "SMX Playoff Rd 2",
+      "venue": "TBA",
+      "location": "TBA",
+      "series": "SMX",
+      "round": 2
+    },
+    {
+      "date": "2026-09-25",
+      "name": "SMX World Championship",
+      "venue": "TBA",
+      "location": "TBA",
+      "series": "SMX",
       "round": 0
     }
   ]
